@@ -1,0 +1,10 @@
+app/
+│
+├── api/
+├── core/
+├── db/
+├── models/
+├── schemas/
+├── services/
+├── utils/
+└── main.py
