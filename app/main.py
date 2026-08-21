@@ -22,23 +22,23 @@ app = FastAPI(
 )
 
 
-# CORS configuration
-FRONTEND_URL = os.getenv(
-    "FRONTEND_URL",
-    "http://localhost:3000",
-)
+# ============================================================
+# CORS CONFIGURATION
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://ai-hospital-frontend.onrender.com",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        FRONTEND_URL,
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+print("CORS CONFIGURED FOR:", "https://ai-hospital-frontend.onrender.com")
 
 
 # Register API routers
