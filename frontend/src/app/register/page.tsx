@@ -45,6 +45,7 @@ export default function RegisterPage() {
         email,
         phone,
         password,
+        village,
       });
 
       console.log("Registration successful:", response);

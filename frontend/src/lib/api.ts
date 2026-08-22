@@ -164,7 +164,7 @@ export type RegisterRequest = {
   email: string;
   phone: string;
   password: string;
-  village?: string;
+  village: string;
 };
 
 // ============================================================
