@@ -20,13 +20,23 @@ app = FastAPI(
 )
 
 
+# ============================================================
 # CORS
+# ============================================================
+
+ALLOWED_ORIGINS = [
+    "https://ai-hospital-frontend.onrender.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+print("========== CORS DEBUG ==========")
+print("ALLOWED_ORIGINS =", ALLOWED_ORIGINS)
+print("================================")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
