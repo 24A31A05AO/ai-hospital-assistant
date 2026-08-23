@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { API_BASE_URL } from "@/lib/api";
+
 /* =========================================================
    TYPES
 ========================================================= */
@@ -123,7 +125,7 @@ export default function AdminDashboard() {
     }
 
     const response = await fetch(
-      `http://127.0.0.1:8000${endpoint}`,
+      `${API_BASE_URL}${endpoint}`, 
       {
         ...options,
 
@@ -1053,7 +1055,7 @@ function UserRow({
 
       const response =
         await fetch(
-          `http://127.0.0.1:8000/admin/users/${user.id}`,
+          `${API_BASE_URL}/admin/users/${user.id}`,
           {
             method: "PATCH",
 

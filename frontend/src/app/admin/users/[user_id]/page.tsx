@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import { API_BASE_URL } from "@/lib/api";
+
 type User = {
   id: number;
   full_name: string;
@@ -40,7 +42,7 @@ export default function AdminUserDetailsPage() {
       }
 
       const response = await fetch(
-        `http://127.0.0.1:8000/admin/users/${userId}`,
+        `${API_BASE_URL}/admin/users/${userId}`,
         {
           method: "GET",
           headers: {

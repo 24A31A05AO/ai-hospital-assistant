@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 type User = {
   id: number;
@@ -75,7 +76,7 @@ export default function AdminDashboard() {
     }
 
     const response = await fetch(
-      `http://127.0.0.1:8000${endpoint}`,
+      `${API_BASE_URL}${endpoint}`,
       {
         ...options,
         headers: {

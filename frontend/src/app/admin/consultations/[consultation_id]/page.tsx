@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import { API_BASE_URL } from "@/lib/api";
+
 type User = {
   id: number;
   full_name: string;
@@ -84,7 +86,7 @@ export default function AdminConsultationPage() {
         : consultationId;
 
       const response = await fetch(
-        `http://127.0.0.1:8000/admin/consultations/${id}`,
+        `${API_BASE_URL}/admin/consultations/${id}`,
         {
           method: "GET",
           headers: {
