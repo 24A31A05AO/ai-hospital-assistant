@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Hospital Assistant",
+  title: "Hospital AI Platform",
   description:
-    "AI-powered hospital patient assistant platform for patients, doctors, and hospitals.",
+    "AI-powered hospital patient assistant platform",
 
   verification: {
     google:
