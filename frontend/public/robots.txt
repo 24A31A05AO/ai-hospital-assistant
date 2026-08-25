@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /doctor
+Disallow: /dashboard
+Disallow: /login
+Disallow: /consultation
+Disallow: /consultations
+
+Sitemap: https://ai-hospital-frontend.onrender.com/sitemap.xml
