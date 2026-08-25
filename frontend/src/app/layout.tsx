@@ -17,7 +17,6 @@ export const metadata: Metadata = {
     "hospital patient assistant",
     "AI healthcare platform",
     "patient consultation",
-    "hospital consultation",
   ],
 
   metadataBase: new URL(
@@ -27,6 +26,10 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+  },
+
+  verification: {
+    google: "ez9cZwZgbnYJ33Z0UEqHepTfHC7yHXHzmQElhmop52o",
   },
 
   openGraph: {
