@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
   verification: {
     google:
-      "1d4f359b2daba0ba.html",
+      "ez9cZwZgbnYJ33Z0UEqHepTfHC7yHXHzmQElhmop52o",
   },
 };
 
