@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
@@ -13,31 +14,22 @@ from app.api.admin import router as admin_router
 from app.whatsapp.routes import router as whatsapp_router
 
 
-print("Auth routes:", len(auth_router.routes))
-print("Users routes:", len(users_router.routes))
-print("Consultation routes:", len(consultations_router.routes))
-print("Doctor routes:", len(doctor_router.routes))
-print("Admin routes:", len(admin_router.routes))
-
-
 app = FastAPI(
     title="AI Hospital Patient Assistant"
 )
 
 
-# ============================================================
-# CORS
-# ============================================================
+@app.head("/")
+def head_root():
+    return Response(status_code=200)
 
+
+# CORS
 ALLOWED_ORIGINS = [
     "https://ai-hospital-frontend.onrender.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-
-print("========== CORS DEBUG ==========")
-print("ALLOWED_ORIGINS =", ALLOWED_ORIGINS)
-print("================================")
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,9 +47,6 @@ app.include_router(consultations_router)
 app.include_router(doctor_router)
 app.include_router(admin_router)
 app.include_router(whatsapp_router)
-
-
-print("All routes registered")
 
 
 @app.get("/")
