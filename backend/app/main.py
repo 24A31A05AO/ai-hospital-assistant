@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,6 +10,7 @@ from app.api.users import router as users_router
 from app.api.consultations import router as consultations_router
 from app.api.doctor import router as doctor_router
 from app.api.admin import router as admin_router
+from app.whatsapp.routes import router as whatsapp_router
 
 
 print("Auth routes:", len(auth_router.routes))
@@ -49,6 +54,7 @@ app.include_router(users_router)
 app.include_router(consultations_router)
 app.include_router(doctor_router)
 app.include_router(admin_router)
+app.include_router(whatsapp_router)
 
 
 print("All routes registered")
