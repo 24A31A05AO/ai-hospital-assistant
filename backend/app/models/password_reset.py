@@ -29,8 +29,10 @@ class PasswordResetToken(Base):
         index=True,
     )
 
-    token = Column(
-        String(255),
+    # SHA-256 hash of the actual reset token.
+    # The raw token is never stored.
+    token_hash = Column(
+        String(64),
         unique=True,
         nullable=False,
         index=True,

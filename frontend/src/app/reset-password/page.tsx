@@ -1,35 +1,40 @@
 "use client";
 
-import {
-  FormEvent,
-  Suspense,
-  useState,
-} from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { resetPassword } from "@/lib/api";
-
-/* =========================================================
-   RESET PASSWORD FORM
-========================================================= */
-
-function ResetPasswordForm() {
+export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const token = searchParams.get("token") || "";
+  const [token, setToken] = useState("");
 
   const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] =
-    useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  /* =======================================================
-     SUBMIT
-  ======================================================= */
+  // ============================================================
+  // GET TOKEN FROM URL
+  // ============================================================
+
+  useEffect(() => {
+    const urlToken = searchParams.get("token");
+
+    if (urlToken) {
+      setToken(urlToken);
+    } else {
+      setError(
+        "Password reset link is missing or invalid."
+      );
+    }
+  }, [searchParams]);
+
+  // ============================================================
+  // SUBMIT
+  // ============================================================
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -37,346 +42,253 @@ function ResetPasswordForm() {
     event.preventDefault();
 
     setError("");
-    setSuccess("");
+    setMessage("");
 
-    /* -------------------------------------------------------
-       Validate token
-    ------------------------------------------------------- */
+    // ----------------------------------------------------------
+    // Validate token
+    // ----------------------------------------------------------
 
     if (!token) {
       setError(
-        "Password reset token is missing. Please use the reset link from your email."
+        "Invalid or missing password reset token."
       );
       return;
     }
 
-    /* -------------------------------------------------------
-       Validate password
-    ------------------------------------------------------- */
-
-    if (!newPassword) {
-      setError("Please enter a new password.");
-      return;
-    }
+    // ----------------------------------------------------------
+    // Validate password
+    // ----------------------------------------------------------
 
     if (newPassword.length < 8) {
       setError(
-        "Password must be at least 8 characters long."
+        "Password must contain at least 8 characters."
       );
-      return;
-    }
-
-    if (!confirmPassword) {
-      setError("Please confirm your new password.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(
+        "Passwords do not match."
+      );
       return;
     }
+
+    // ----------------------------------------------------------
+    // Submit
+    // ----------------------------------------------------------
 
     setLoading(true);
 
     try {
-      /* -----------------------------------------------------
-         Call backend
-      ----------------------------------------------------- */
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_URL ||
+          "http://127.0.0.1:8000"
+        }/auth/reset-password`,
+        {
+          method: "POST",
 
-      const result = await resetPassword(
-        token,
-        newPassword
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            token,
+            new_password: newPassword,
+          }),
+        }
       );
 
-      console.log(
-        "Password reset successful:",
-        result
-      );
+      const data = await response.json();
 
-      setSuccess(
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+          "Unable to reset password."
+        );
+      }
+
+      setMessage(
         "Password reset successful. Redirecting to login..."
       );
 
-      /* -----------------------------------------------------
-         Redirect to login
-      ----------------------------------------------------- */
+      setNewPassword("");
+      setConfirmPassword("");
+
+      // --------------------------------------------------------
+      // Redirect to login
+      // --------------------------------------------------------
 
       setTimeout(() => {
-        router.replace("/login");
-      }, 1500);
-    } catch (err: unknown) {
-      console.error(
-        "Password reset error:",
-        err
-      );
+        router.push("/login");
+      }, 2000);
 
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError(
-          "Unable to reset password. Please try again."
-        );
-      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong."
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  /* =======================================================
-     UI
-  ======================================================= */
+  // ============================================================
+  // UI
+  // ============================================================
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
 
-          {/* =================================================
-              HEADER
-          ================================================= */}
+      <div className="w-full max-w-md">
+
+        {/* Card */}
+
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
+
+          {/* Header */}
 
           <div className="text-center mb-8">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-              <span className="text-3xl">
-                🔐
-              </span>
+
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-2xl">
+              🔐
             </div>
 
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-slate-900">
               Reset Password
             </h1>
 
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-slate-500">
               Create a new password for your account.
             </p>
+
           </div>
 
-          {/* =================================================
-              ERROR
-          ================================================= */}
+          {/* Error */}
 
           {error && (
-            <div
-              role="alert"
-              className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3"
-            >
-              <p className="text-sm font-medium text-red-700">
-                {error}
-              </p>
+            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
             </div>
           )}
 
-          {/* =================================================
-              SUCCESS
-          ================================================= */}
+          {/* Success */}
 
-          {success && (
-            <div
-              role="status"
-              className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3"
-            >
-              <p className="text-sm font-medium text-green-700">
-                {success}
-              </p>
+          {message && (
+            <div className="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              {message}
             </div>
           )}
 
-          {/* =================================================
-              NO TOKEN
-          ================================================= */}
+          {/* Form */}
 
-          {!token ? (
-            <div className="space-y-5">
-              <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
-                <p className="text-sm text-yellow-800">
-                  This password reset link is missing
-                  its token or is invalid.
-                </p>
-              </div>
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5"
+          >
 
-              <button
-                type="button"
-                onClick={() =>
-                  router.push("/forgot-password")
-                }
-                className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            {/* New password */}
+
+            <div>
+
+              <label
+                htmlFor="newPassword"
+                className="block mb-2 text-sm font-medium text-slate-700"
               >
-                Request New Reset Link
-              </button>
+                New Password
+              </label>
 
-              <button
-                type="button"
-                onClick={() =>
-                  router.push("/login")
+              <input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(event) =>
+                  setNewPassword(event.target.value)
                 }
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                Back to Login
-              </button>
-            </div>
-          ) : (
-            /* =================================================
-               FORM
-            ================================================= */
-
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5"
-            >
-
-              {/* =============================================
-                  NEW PASSWORD
-              ============================================= */}
-
-              <div>
-                <label
-                  htmlFor="newPassword"
-                  className="mb-2 block text-sm font-medium text-gray-700"
-                >
-                  New password
-                </label>
-
-                <input
-                  id="newPassword"
-                  name="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(event) => {
-                    setNewPassword(
-                      event.target.value
-                    );
-
-                    if (error) {
-                      setError("");
-                    }
-                  }}
-                  placeholder="Enter new password"
-                  autoComplete="new-password"
-                  disabled={loading}
-                  required
-                  minLength={8}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
-                />
-
-                <p className="mt-1 text-xs text-gray-500">
-                  Minimum 8 characters.
-                </p>
-              </div>
-
-              {/* =============================================
-                  CONFIRM PASSWORD
-              ============================================= */}
-
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="mb-2 block text-sm font-medium text-gray-700"
-                >
-                  Confirm new password
-                </label>
-
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => {
-                    setConfirmPassword(
-                      event.target.value
-                    );
-
-                    if (error) {
-                      setError("");
-                    }
-                  }}
-                  placeholder="Confirm new password"
-                  autoComplete="new-password"
-                  disabled={loading}
-                  required
-                  minLength={8}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
-                />
-              </div>
-
-              {/* =============================================
-                  SUBMIT
-              ============================================= */}
-
-              <button
-                type="submit"
+                placeholder="Enter new password"
+                autoComplete="new-password"
                 disabled={loading}
-                className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-400"
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                required
+              />
+
+            </div>
+
+            {/* Confirm password */}
+
+            <div>
+
+              <label
+                htmlFor="confirmPassword"
+                className="block mb-2 text-sm font-medium text-slate-700"
               >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Resetting password...
-                  </span>
-                ) : (
-                  "Reset Password"
-                )}
-              </button>
+                Confirm Password
+              </label>
 
-              {/* =============================================
-                  LOGIN
-              ============================================= */}
-
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() =>
-                  router.push("/login")
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) =>
+                  setConfirmPassword(event.target.value)
                 }
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Back to Login
-              </button>
-            </form>
-          )}
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+                disabled={loading}
+                className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                required
+              />
 
-          {/* =================================================
-              SECURITY INFO
-          ================================================= */}
+            </div>
 
-          <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <p className="text-xs font-semibold text-gray-700">
-              Security
-            </p>
+            {/* Password requirements */}
 
-            <p className="mt-1 text-xs leading-5 text-gray-500">
-              Your password is securely hashed before
-              it is stored. The reset link can only be
-              used once and expires after a limited time.
-            </p>
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
+
+              <p className="text-xs font-medium text-slate-700 mb-2">
+                Password requirements
+              </p>
+
+              <ul className="text-xs text-slate-500 space-y-1">
+                <li>• At least 8 characters</li>
+                <li>• Both password fields must match</li>
+              </ul>
+
+            </div>
+
+            {/* Submit */}
+
+            <button
+              type="submit"
+              disabled={loading || !token}
+              className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading
+                ? "Resetting Password..."
+                : "Reset Password"}
+            </button>
+
+          </form>
+
+          {/* Back to login */}
+
+          <div className="mt-6 text-center">
+
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              ← Back to Login
+            </button>
+
           </div>
+
         </div>
+
       </div>
+
     </main>
-  );
-}
-
-/* =========================================================
-   PAGE
-   Suspense is REQUIRED because ResetPasswordForm uses
-   useSearchParams().
-========================================================= */
-
-export default function ResetPasswordPage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-
-            <p className="text-sm text-gray-600">
-              Loading password reset...
-            </p>
-          </div>
-        </main>
-      }
-    >
-      <ResetPasswordForm />
-    </Suspense>
   );
 }

@@ -11,6 +11,8 @@ from app.models.base import Base
 # Import models so Alembic can detect their tables.
 from app.models.user import User
 from app.models.consultation import Consultation
+from app.models.hospital import Hospital
+from app.models.appointment import Appointment
 
 
 # ============================================================

@@ -83,6 +83,37 @@ export type Doctor = {
 };
 
 // ============================================================
+// HOSPITAL
+// ============================================================
+
+export type Hospital = {
+  id: number;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  qr_code_id: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export async function getHospitalByQr(
+  qrCodeId: string
+): Promise<Hospital> {
+  if (!qrCodeId.trim()) {
+    throw new Error("Hospital QR code is required.");
+  }
+
+  return apiRequest<Hospital>(
+    `/hospitals/qr/${encodeURIComponent(qrCodeId.trim())}`
+  );
+}
+
+export async function getHospitals(): Promise<Hospital[]> {
+  return apiRequest<Hospital[]>("/hospitals/");
+}
+
+// ============================================================
 // CONSULTATION TYPE
 // ============================================================
 
