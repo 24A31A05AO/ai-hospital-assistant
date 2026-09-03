@@ -1,3 +1,5 @@
+import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,22 +17,61 @@ from app.api.hospital import router as hospital_router
 from app.whatsapp.routes import router as whatsapp_router
 
 
+# ============================================================
+# FASTAPI APPLICATION
+# ============================================================
+
 app = FastAPI(
     title="AI Hospital Patient Assistant"
 )
 
+
+# ============================================================
+# DEBUG ROUTE COUNTS
+# ============================================================
+
+print("========== ROUTE DEBUG ==========")
+print("Auth routes:", len(auth_router.routes))
+print("Users routes:", len(users_router.routes))
+print("Consultation routes:", len(consultations_router.routes))
+print("Doctor routes:", len(doctor_router.routes))
+print("Admin routes:", len(admin_router.routes))
+print("Hospital routes:", len(hospital_router.routes))
+print("WhatsApp routes:", len(whatsapp_router.routes))
+print("=================================")
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
 
 @app.head("/")
 def head_root():
     return Response(status_code=200)
 
 
+@app.get("/")
+def root():
+    return {
+        "status": "running",
+        "message": "Welcome to AI Hospital Patient Assistant API",
+    }
+
+
+# ============================================================
 # CORS
+# ============================================================
+
 ALLOWED_ORIGINS = [
     "https://ai-hospital-frontend.onrender.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+print("========== CORS DEBUG ==========")
+print("ALLOWED_ORIGINS =", ALLOWED_ORIGINS)
+print("=================================")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +82,10 @@ app.add_middleware(
 )
 
 
-# Register routers
+# ============================================================
+# REGISTER API ROUTERS
+# ============================================================
+
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(consultations_router)
@@ -51,9 +95,14 @@ app.include_router(hospital_router)
 app.include_router(whatsapp_router)
 
 
-@app.get("/")
-def root():
-    return {
-        "status": "running",
-        "message": "Welcome to AI Hospital Patient Assistant API",
-    }
+print("========== ALL ROUTES REGISTERED ==========")
+
+for route in app.routes:
+    methods = getattr(route, "methods", None)
+
+    if methods:
+        print(
+            f"{sorted(methods)} {route.path}"
+        )
+
+print("==========================================")
