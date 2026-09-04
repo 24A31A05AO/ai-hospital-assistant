@@ -12,8 +12,6 @@ from app.crud.consultation import (
     consultation_to_response_data,
 )
 
-from app.schemas.appointment import AppointmentResponse
-
 
 router = APIRouter(
     prefix="/doctor",
@@ -25,11 +23,9 @@ router = APIRouter(
 # DOCTOR ACCESS CHECK
 # ============================================================
 
-def require_doctor(
-    current_user: User,
-):
+def require_doctor(current_user: User):
     """
-    Allow only active doctor accounts.
+    Allow only active doctor users.
     """
 
     if current_user.role != "doctor":
@@ -56,18 +52,12 @@ def get_doctor_consultations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Return consultations assigned to the
-    currently logged-in doctor.
-    """
-
     require_doctor(current_user)
 
     consultations = (
         db.query(Consultation)
         .filter(
-            Consultation.doctor_id
-            == current_user.id
+            Consultation.doctor_id == current_user.id
         )
         .order_by(
             Consultation.created_at.desc()
@@ -88,29 +78,19 @@ def get_doctor_consultations(
 # GET ONE ASSIGNED CONSULTATION
 # ============================================================
 
-@router.get(
-    "/consultations/{consultation_id}"
-)
+@router.get("/consultations/{consultation_id}")
 def get_doctor_consultation(
     consultation_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Get one consultation assigned to the
-    currently logged-in doctor.
-    """
-
     require_doctor(current_user)
 
     consultation = (
         db.query(Consultation)
         .filter(
-            Consultation.id
-            == consultation_id,
-
-            Consultation.doctor_id
-            == current_user.id,
+            Consultation.id == consultation_id,
+            Consultation.doctor_id == current_user.id,
         )
         .first()
     )
@@ -134,9 +114,7 @@ def get_doctor_consultation(
 # UPDATE DOCTOR REVIEW
 # ============================================================
 
-@router.patch(
-    "/consultations/{consultation_id}"
-)
+@router.patch("/consultations/{consultation_id}")
 def update_doctor_consultation(
     consultation_id: int,
     status: str | None = None,
@@ -144,20 +122,13 @@ def update_doctor_consultation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Update doctor notes and/or consultation status.
-    """
-
     require_doctor(current_user)
 
     consultation = (
         db.query(Consultation)
         .filter(
-            Consultation.id
-            == consultation_id,
-
-            Consultation.doctor_id
-            == current_user.id,
+            Consultation.id == consultation_id,
+            Consultation.doctor_id == current_user.id,
         )
         .first()
     )
@@ -171,24 +142,15 @@ def update_doctor_consultation(
             ),
         )
 
-    if (
-        status is None
-        and doctor_notes is None
-    ):
+    if status is None and doctor_notes is None:
         raise HTTPException(
             status_code=400,
             detail="No update data supplied",
         )
 
-    # --------------------------------------------------------
-    # STATUS
-    # --------------------------------------------------------
-
     if status is not None:
 
-        normalized_status = (
-            status.strip().lower()
-        )
+        normalized_status = status.strip().lower()
 
         allowed_statuses = {
             "pending",
@@ -198,10 +160,7 @@ def update_doctor_consultation(
             "referred",
         }
 
-        if (
-            normalized_status
-            not in allowed_statuses
-        ):
+        if normalized_status not in allowed_statuses:
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -212,31 +171,16 @@ def update_doctor_consultation(
                 ),
             )
 
-        consultation.status = (
-            normalized_status
-        )
-
-    # --------------------------------------------------------
-    # DOCTOR NOTES
-    # --------------------------------------------------------
+        consultation.status = normalized_status
 
     if doctor_notes is not None:
-
-        consultation.doctor_notes = (
-            doctor_notes.strip()
-        )
-
-    # --------------------------------------------------------
-    # SAVE
-    # --------------------------------------------------------
+        consultation.doctor_notes = doctor_notes.strip()
 
     try:
-
         db.commit()
         db.refresh(consultation)
 
     except Exception:
-
         db.rollback()
 
         raise HTTPException(
@@ -254,17 +198,14 @@ def update_doctor_consultation(
 # GET DOCTOR APPOINTMENTS
 # ============================================================
 
-@router.get(
-    "/appointments",
-    response_model=list[AppointmentResponse],
-)
+@router.get("/appointments")
 def get_doctor_appointments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Return all appointments assigned to
-    the currently logged-in doctor.
+    Return appointments assigned to the
+    currently logged-in doctor.
     """
 
     require_doctor(current_user)
@@ -272,8 +213,7 @@ def get_doctor_appointments(
     appointments = (
         db.query(Appointment)
         .filter(
-            Appointment.doctor_id
-            == current_user.id
+            Appointment.doctor_id == current_user.id
         )
         .order_by(
             Appointment.appointment_date.asc(),
@@ -282,25 +222,79 @@ def get_doctor_appointments(
         .all()
     )
 
-    return appointments
+    result = []
+
+    for appointment in appointments:
+
+        patient = appointment.patient
+
+        result.append(
+            {
+                "id": appointment.id,
+
+                "patient_id": appointment.patient_id,
+                "hospital_id": appointment.hospital_id,
+
+                "doctor_id": appointment.doctor_id,
+                "consultation_id": appointment.consultation_id,
+
+                "department": appointment.department,
+
+                "appointment_date": (
+                    appointment.appointment_date.isoformat()
+                    if appointment.appointment_date
+                    else None
+                ),
+
+                "appointment_time": (
+                    appointment.appointment_time.isoformat()
+                    if appointment.appointment_time
+                    else None
+                ),
+
+                "queue_number": appointment.queue_number,
+
+                "priority": appointment.priority,
+
+                "status": appointment.status,
+
+                "notes": appointment.notes,
+
+                "created_at": (
+                    appointment.created_at.isoformat()
+                    if appointment.created_at
+                    else None
+                ),
+
+                "patient": (
+                    {
+                        "id": patient.id,
+                        "full_name": patient.full_name,
+                        "email": patient.email,
+                        "phone": patient.phone,
+                        "village": patient.village,
+                    }
+                    if patient
+                    else None
+                ),
+            }
+        )
+
+    return result
 
 
 # ============================================================
 # GET ONE DOCTOR APPOINTMENT
 # ============================================================
 
-@router.get(
-    "/appointments/{appointment_id}",
-    response_model=AppointmentResponse,
-)
+@router.get("/appointments/{appointment_id}")
 def get_doctor_appointment(
     appointment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get one appointment assigned to
-    the currently logged-in doctor.
+    Return one appointment assigned to this doctor.
     """
 
     require_doctor(current_user)
@@ -308,11 +302,8 @@ def get_doctor_appointment(
     appointment = (
         db.query(Appointment)
         .filter(
-            Appointment.id
-            == appointment_id,
-
-            Appointment.doctor_id
-            == current_user.id,
+            Appointment.id == appointment_id,
+            Appointment.doctor_id == current_user.id,
         )
         .first()
     )
@@ -326,4 +317,54 @@ def get_doctor_appointment(
             ),
         )
 
-    return appointment
+    patient = appointment.patient
+
+    return {
+        "id": appointment.id,
+
+        "patient_id": appointment.patient_id,
+        "hospital_id": appointment.hospital_id,
+
+        "doctor_id": appointment.doctor_id,
+        "consultation_id": appointment.consultation_id,
+
+        "department": appointment.department,
+
+        "appointment_date": (
+            appointment.appointment_date.isoformat()
+            if appointment.appointment_date
+            else None
+        ),
+
+        "appointment_time": (
+            appointment.appointment_time.isoformat()
+            if appointment.appointment_time
+            else None
+        ),
+
+        "queue_number": appointment.queue_number,
+
+        "priority": appointment.priority,
+
+        "status": appointment.status,
+
+        "notes": appointment.notes,
+
+        "created_at": (
+            appointment.created_at.isoformat()
+            if appointment.created_at
+            else None
+        ),
+
+        "patient": (
+            {
+                "id": patient.id,
+                "full_name": patient.full_name,
+                "email": patient.email,
+                "phone": patient.phone,
+                "village": patient.village,
+            }
+            if patient
+            else None
+        ),
+    }
