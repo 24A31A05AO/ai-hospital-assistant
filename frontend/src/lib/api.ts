@@ -700,6 +700,37 @@ export async function getDoctorConsultation(
 }
 
 // ============================================================
+// DOCTOR APPOINTMENTS
+// ============================================================
+
+export interface DoctorAppointment {
+  id: number;
+
+  patient_id: number;
+  hospital_id: number;
+
+  doctor_id: number | null;
+  consultation_id: number | null;
+
+  department: string;
+
+  appointment_date: string;
+  appointment_time: string;
+
+  queue_number: number | null;
+
+  priority: string;
+
+  status: string;
+
+  notes: string | null;
+
+  created_at: string;
+}
+
+
+
+// ============================================================
 // UPDATE DOCTOR CONSULTATION
 // ============================================================
 
@@ -917,5 +948,17 @@ export async function getDoctorAppointments(): Promise<
 > {
   return apiRequest<Appointment[]>(
     "/appointments/doctor"
+  );
+}
+
+// ============================================================
+// GET ONE DOCTOR APPOINTMENT
+// ============================================================
+
+export async function getDoctorAppointment(
+  appointmentId: number
+): Promise<Appointment> {
+  return apiRequest<Appointment>(
+    `/doctor/appointments/${appointmentId}`
   );
 }

@@ -6,10 +6,13 @@ from app.db.session import get_db
 
 from app.models.user import User
 from app.models.consultation import Consultation
+from app.models.appointment import Appointment
 
 from app.crud.consultation import (
     consultation_to_response_data,
 )
+
+from app.schemas.appointment import AppointmentResponse
 
 
 router = APIRouter(
@@ -22,9 +25,11 @@ router = APIRouter(
 # DOCTOR ACCESS CHECK
 # ============================================================
 
-def require_doctor(current_user: User):
+def require_doctor(
+    current_user: User,
+):
     """
-    Allow only users with the doctor role.
+    Allow only active doctor accounts.
     """
 
     if current_user.role != "doctor":
@@ -52,8 +57,8 @@ def get_doctor_consultations(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Return ONLY consultations assigned to
-    the currently logged-in doctor.
+    Return consultations assigned to the
+    currently logged-in doctor.
     """
 
     require_doctor(current_user)
@@ -92,10 +97,8 @@ def get_doctor_consultation(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get one consultation.
-
-    A doctor can access it ONLY if it is
-    assigned to that doctor.
+    Get one consultation assigned to the
+    currently logged-in doctor.
     """
 
     require_doctor(current_user)
@@ -143,16 +146,9 @@ def update_doctor_consultation(
 ):
     """
     Update doctor notes and/or consultation status.
-
-    A doctor can update ONLY consultations
-    assigned to that doctor.
     """
 
     require_doctor(current_user)
-
-    # --------------------------------------------------------
-    # FIND ONLY THIS DOCTOR'S CONSULTATION
-    # --------------------------------------------------------
 
     consultation = (
         db.query(Consultation)
@@ -175,10 +171,6 @@ def update_doctor_consultation(
             ),
         )
 
-    # --------------------------------------------------------
-    # CHECK UPDATE DATA
-    # --------------------------------------------------------
-
     if (
         status is None
         and doctor_notes is None
@@ -189,7 +181,7 @@ def update_doctor_consultation(
         )
 
     # --------------------------------------------------------
-    # UPDATE STATUS
+    # STATUS
     # --------------------------------------------------------
 
     if status is not None:
@@ -225,7 +217,7 @@ def update_doctor_consultation(
         )
 
     # --------------------------------------------------------
-    # UPDATE DOCTOR NOTES
+    # DOCTOR NOTES
     # --------------------------------------------------------
 
     if doctor_notes is not None:
@@ -239,24 +231,99 @@ def update_doctor_consultation(
     # --------------------------------------------------------
 
     try:
+
         db.commit()
         db.refresh(consultation)
 
     except Exception:
+
         db.rollback()
 
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Unable to update consultation."
-            ),
+            detail="Unable to update consultation.",
         )
-
-    # --------------------------------------------------------
-    # RETURN UPDATED CONSULTATION
-    # --------------------------------------------------------
 
     return consultation_to_response_data(
         consultation,
         db,
     )
+
+
+# ============================================================
+# GET DOCTOR APPOINTMENTS
+# ============================================================
+
+@router.get(
+    "/appointments",
+    response_model=list[AppointmentResponse],
+)
+def get_doctor_appointments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return all appointments assigned to
+    the currently logged-in doctor.
+    """
+
+    require_doctor(current_user)
+
+    appointments = (
+        db.query(Appointment)
+        .filter(
+            Appointment.doctor_id
+            == current_user.id
+        )
+        .order_by(
+            Appointment.appointment_date.asc(),
+            Appointment.appointment_time.asc(),
+        )
+        .all()
+    )
+
+    return appointments
+
+
+# ============================================================
+# GET ONE DOCTOR APPOINTMENT
+# ============================================================
+
+@router.get(
+    "/appointments/{appointment_id}",
+    response_model=AppointmentResponse,
+)
+def get_doctor_appointment(
+    appointment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get one appointment assigned to
+    the currently logged-in doctor.
+    """
+
+    require_doctor(current_user)
+
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.id
+            == appointment_id,
+
+            Appointment.doctor_id
+            == current_user.id,
+        )
+        .first()
+    )
+
+    if appointment is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Appointment not found "
+                "or not assigned to you."
+            ),
+        )
+
+    return appointment

@@ -15,6 +15,7 @@ from app.api.doctor import router as doctor_router
 from app.api.admin import router as admin_router
 from app.api.hospital import router as hospital_router
 from app.whatsapp.routes import router as whatsapp_router
+from app.api.appointments import router as appointments_router
 
 
 # ============================================================
@@ -38,6 +39,7 @@ print("Doctor routes:", len(doctor_router.routes))
 print("Admin routes:", len(admin_router.routes))
 print("Hospital routes:", len(hospital_router.routes))
 print("WhatsApp routes:", len(whatsapp_router.routes))
+print("Appointment routes:", len(appointments_router.routes))
 print("=================================")
 
 
@@ -93,6 +95,7 @@ app.include_router(doctor_router)
 app.include_router(admin_router)
 app.include_router(hospital_router)
 app.include_router(whatsapp_router)
+app.include_router(appointments_router)
 
 
 print("========== ALL ROUTES REGISTERED ==========")
