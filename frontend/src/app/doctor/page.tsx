@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import {
   getDoctorConsultations,
   updateDoctorConsultation,
+  getDoctorAppointments,
   type Consultation,
+  type Appointment,
 } from "@/lib/api";
 
 /* =========================================================
@@ -39,7 +41,7 @@ function parseList(
       return [String(parsed).trim()].filter(Boolean);
     }
   } catch {
-    // Not JSON, continue below.
+    // Not JSON.
   }
 
   return value
@@ -94,6 +96,43 @@ function statusClass(
     return "bg-orange-100 text-orange-800";
   }
 
+  if (value === "cancelled") {
+    return "bg-red-100 text-red-800";
+  }
+
+  return "bg-slate-100 text-slate-700";
+}
+
+function appointmentStatusClass(
+  status: string | null | undefined
+): string {
+  const value = (status || "booked").toLowerCase();
+
+  if (
+    value === "completed" ||
+    value === "done"
+  ) {
+    return "bg-green-100 text-green-800";
+  }
+
+  if (
+    value === "cancelled" ||
+    value === "canceled"
+  ) {
+    return "bg-red-100 text-red-800";
+  }
+
+  if (
+    value === "in_progress" ||
+    value === "in progress"
+  ) {
+    return "bg-blue-100 text-blue-800";
+  }
+
+  if (value === "booked") {
+    return "bg-purple-100 text-purple-800";
+  }
+
   return "bg-slate-100 text-slate-700";
 }
 
@@ -113,8 +152,65 @@ function formatDate(
   return date.toLocaleString();
 }
 
+function formatAppointmentDate(
+  value: string | null | undefined
+): string {
+  if (!value) {
+    return "Date unavailable";
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatAppointmentTime(
+  value: string | null | undefined
+): string {
+  if (!value) {
+    return "Time unavailable";
+  }
+
+  const parts = value.split(":");
+
+  if (parts.length < 2) {
+    return value;
+  }
+
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes)
+  ) {
+    return value;
+  }
+
+  const date = new Date();
+
+  date.setHours(hours);
+  date.setMinutes(minutes);
+  date.setSeconds(0);
+  date.setMilliseconds(0);
+
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 /* =========================================================
-   PATIENT DISPLAY HELPERS
+   PATIENT DISPLAY
 ========================================================= */
 
 type PatientDisplay = {
@@ -144,7 +240,7 @@ export default function DoctorDashboard() {
   const router = useRouter();
 
   /* =======================================================
-     STATE
+     CONSULTATION STATE
   ======================================================= */
 
   const [consultations, setConsultations] =
@@ -169,7 +265,20 @@ export default function DoctorDashboard() {
     useState(false);
 
   /* =======================================================
-     LOAD CONSULTATIONS + AUTO REFRESH
+     APPOINTMENT STATE
+  ======================================================= */
+
+  const [appointments, setAppointments] =
+    useState<Appointment[]>([]);
+
+  const [appointmentsLoading, setAppointmentsLoading] =
+    useState(true);
+
+  const [appointmentsError, setAppointmentsError] =
+    useState("");
+
+  /* =======================================================
+     LOAD CONSULTATIONS
   ======================================================= */
 
   useEffect(() => {
@@ -187,13 +296,6 @@ export default function DoctorDashboard() {
       }
 
       try {
-        /*
-          Only show the full loading screen during
-          the first request.
-
-          During the 5-second background refresh,
-          the existing dashboard remains visible.
-        */
         if (isInitialLoad) {
           setLoading(true);
         }
@@ -212,14 +314,6 @@ export default function DoctorDashboard() {
 
         setConsultations(data);
 
-        /*
-          If the currently opened consultation
-          still exists, update the selected
-          consultation with the latest backend data.
-
-          This keeps the modal synchronized if
-          the backend changes the consultation.
-        */
         setSelected((currentSelected) => {
           if (!currentSelected) {
             return null;
@@ -257,25 +351,88 @@ export default function DoctorDashboard() {
       }
     }
 
-    /*
-      Initial API request immediately
-      when the doctor dashboard opens.
-    */
     loadConsultations(true);
 
-    /*
-      Background polling.
+    const interval =
+      window.setInterval(() => {
+        loadConsultations(false);
+      }, 5000);
 
-      Every 5 seconds the dashboard asks
-      FastAPI for the latest consultations.
-    */
-    const interval = window.setInterval(() => {
-      loadConsultations(false);
-    }, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [router]);
+
+  /* =======================================================
+     LOAD APPOINTMENTS
+  ======================================================= */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAppointments() {
+      const token =
+        localStorage.getItem("access_token");
+
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        setAppointmentsLoading(true);
+        setAppointmentsError("");
+
+        const data =
+          await getDoctorAppointments();
+
+        if (cancelled) {
+          return;
+        }
+
+        console.log(
+          "Doctor appointments:",
+          data
+        );
+
+        setAppointments(data);
+      } catch (err) {
+        console.error(
+          "Failed to load doctor appointments:",
+          err
+        );
+
+        if (!cancelled) {
+          if (err instanceof Error) {
+            setAppointmentsError(
+              err.message
+            );
+          } else {
+            setAppointmentsError(
+              "Failed to load appointments"
+            );
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setAppointmentsLoading(false);
+        }
+      }
+    }
+
+    loadAppointments();
 
     /*
-      Cleanup when the doctor leaves the page.
+      Refresh appointments every 5 seconds.
+      This means an appointment assigned by
+      the admin will appear automatically.
     */
+    const interval =
+      window.setInterval(() => {
+        loadAppointments();
+      }, 5000);
+
     return () => {
       cancelled = true;
       window.clearInterval(interval);
@@ -342,10 +499,6 @@ export default function DoctorDashboard() {
         updated
       );
 
-      /*
-        Replace the consultation in the
-        dashboard list with the updated version.
-      */
       setConsultations((current) =>
         current.map((item) =>
           item.id === selected.id
@@ -429,19 +582,19 @@ export default function DoctorDashboard() {
       <section className="mx-auto max-w-7xl px-6 py-10">
 
         {/* =================================================
-            PAGE TITLE + LIVE INDICATOR
+            PAGE TITLE
         ================================================= */}
 
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
           <div>
             <h2 className="text-3xl font-bold text-slate-900">
-              Patient Consultations
+              Doctor Dashboard
             </h2>
 
             <p className="mt-2 text-slate-600">
-              Review patient consultations and provide
-              clinical notes.
+              Review patient consultations and
+              manage your appointments.
             </p>
           </div>
 
@@ -456,170 +609,179 @@ export default function DoctorDashboard() {
         </div>
 
         {/* =================================================
-            CONSULTATION COUNT
+            CONSULTATIONS SECTION
         ================================================= */}
 
-        {!loading &&
-          !error &&
-          consultations.length > 0 && (
-            <div className="mb-6 text-sm text-slate-500">
-              {consultations.length}{" "}
-              {consultations.length === 1
-                ? "consultation"
-                : "consultations"}{" "}
-              available
+        <div className="mb-14">
+
+          <div className="mb-6">
+
+            <h2 className="text-2xl font-bold text-slate-900">
+              Patient Consultations
+            </h2>
+
+            <p className="mt-1 text-slate-600">
+              Review consultations assigned to you.
+            </p>
+
+          </div>
+
+          {/* CONSULTATION COUNT */}
+
+          {!loading &&
+            !error &&
+            consultations.length > 0 && (
+              <div className="mb-6 text-sm text-slate-500">
+                {consultations.length}{" "}
+                {consultations.length === 1
+                  ? "consultation"
+                  : "consultations"}{" "}
+                available
+              </div>
+            )}
+
+          {/* ERROR */}
+
+          {error && (
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
+
+              <p className="font-semibold">
+                Error
+              </p>
+
+              <p className="mt-1 text-sm">
+                {error}
+              </p>
+
             </div>
           )}
 
-        {/* =================================================
-            ERROR
-        ================================================= */}
+          {/* LOADING */}
 
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
-
-            <p className="font-semibold">
-              Error
-            </p>
-
-            <p className="mt-1 text-sm">
-              {error}
-            </p>
-
-          </div>
-        )}
-
-        {/* =================================================
-            INITIAL LOADING
-        ================================================= */}
-
-        {loading && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
-
-            <p className="mt-4 text-slate-700">
-              Loading consultations...
-            </p>
-
-          </div>
-        )}
-
-        {/* =================================================
-            EMPTY
-        ================================================= */}
-
-        {!loading &&
-          consultations.length === 0 &&
-          !error && (
+          {loading && (
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
 
-              <div className="text-4xl">
-                📋
-              </div>
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
 
-              <h3 className="mt-4 text-xl font-semibold text-slate-900">
-                No consultations
-              </h3>
-
-              <p className="mt-2 text-slate-600">
-                No patient consultations are
-                available yet.
-              </p>
-
-              <p className="mt-4 text-sm text-slate-400">
-                This dashboard is checking for new
-                consultations automatically.
+              <p className="mt-4 text-slate-700">
+                Loading consultations...
               </p>
 
             </div>
           )}
 
-        {/* =================================================
-            CONSULTATION CARDS
-        ================================================= */}
+          {/* EMPTY */}
 
-        {!loading &&
-          consultations.length > 0 && (
+          {!loading &&
+            consultations.length === 0 &&
+            !error && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
 
-            <div className="grid gap-6 lg:grid-cols-2">
+                <div className="text-4xl">
+                  📋
+                </div>
 
-              {consultations.map(
-                (consultation) => {
-                  const patient =
-                    getPatient(
-                      consultation
-                    );
+                <h3 className="mt-4 text-xl font-semibold text-slate-900">
+                  No consultations
+                </h3>
 
-                  const patientName =
-                    patient?.full_name ||
-                    "Unknown Patient";
+                <p className="mt-2 text-slate-600">
+                  No patient consultations are
+                  available yet.
+                </p>
 
-                  const village =
-                    patient?.village ||
-                    "Village not provided";
+                <p className="mt-4 text-sm text-slate-400">
+                  This dashboard checks automatically
+                  for new consultations.
+                </p>
 
-                  return (
-                    <article
-                      key={consultation.id}
-                      className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm"
-                    >
+              </div>
+            )}
 
-                      {/* =====================================
-                          PATIENT INFORMATION
-                      ===================================== */}
+          {/* CONSULTATION CARDS */}
 
-                      <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-5">
+          {!loading &&
+            consultations.length > 0 && (
 
-                        <div className="flex items-start gap-4">
+              <div className="grid gap-6 lg:grid-cols-2">
 
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xl text-white">
-                            👤
-                          </div>
+                {consultations.map(
+                  (consultation) => {
 
-                          <div className="min-w-0">
+                    const patient =
+                      getPatient(
+                        consultation
+                      );
 
-                            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                              Patient
-                            </p>
+                    const patientName =
+                      patient?.full_name ||
+                      "Unknown Patient";
 
-                            <h3 className="mt-1 break-words text-xl font-bold text-slate-900">
-                              {patientName}
-                            </h3>
+                    const village =
+                      patient?.village ||
+                      "Village not provided";
 
-                            <div className="mt-2 space-y-1 text-sm text-slate-600">
+                    return (
+                      <article
+                        key={consultation.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm"
+                      >
 
-                              <p>
-                                <span className="font-semibold">
-                                  Village:
-                                </span>{" "}
-                                {village}
+                        {/* PATIENT */}
+
+                        <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-5">
+
+                          <div className="flex items-start gap-4">
+
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xl text-white">
+                              👤
+                            </div>
+
+                            <div className="min-w-0">
+
+                              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                                Patient
                               </p>
 
-                              <p>
-                                <span className="font-semibold">
-                                  Patient ID:
-                                </span>{" "}
-                                {consultation.user_id}
-                              </p>
+                              <h3 className="mt-1 break-words text-xl font-bold text-slate-900">
+                                {patientName}
+                              </h3>
 
-                              {patient?.phone && (
+                              <div className="mt-2 space-y-1 text-sm text-slate-600">
+
                                 <p>
                                   <span className="font-semibold">
-                                    Phone:
+                                    Village:
                                   </span>{" "}
-                                  {patient.phone}
+                                  {village}
                                 </p>
-                              )}
 
-                              {patient?.email && (
-                                <p className="break-all">
+                                <p>
                                   <span className="font-semibold">
-                                    Email:
+                                    Patient ID:
                                   </span>{" "}
-                                  {patient.email}
+                                  {consultation.user_id}
                                 </p>
-                              )}
+
+                                {patient?.phone && (
+                                  <p>
+                                    <span className="font-semibold">
+                                      Phone:
+                                    </span>{" "}
+                                    {patient.phone}
+                                  </p>
+                                )}
+
+                                {patient?.email && (
+                                  <p className="break-all">
+                                    <span className="font-semibold">
+                                      Email:
+                                    </span>{" "}
+                                    {patient.email}
+                                  </p>
+                                )}
+
+                              </div>
 
                             </div>
 
@@ -627,124 +789,419 @@ export default function DoctorDashboard() {
 
                         </div>
 
-                      </div>
+                        {/* HEADER */}
 
-                      {/* =====================================
-                          CARD HEADER
-                      ===================================== */}
+                        <div className="flex items-start justify-between gap-4">
 
-                      <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
 
-                        <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Chief Complaint
+                            </p>
 
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Chief Complaint
+                            <h3 className="mt-1 break-words text-xl font-bold text-slate-900">
+                              {consultation.chief_complaint ||
+                                "Not provided"}
+                            </h3>
+
+                            <p className="mt-2 text-sm text-slate-500">
+                              {formatDate(
+                                consultation.created_at
+                              )}
+                            </p>
+
+                          </div>
+
+                          <span
+                            className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${priorityClass(
+                              consultation.priority
+                            )}`}
+                          >
+                            {consultation.priority ||
+                              "Normal"}
+                          </span>
+
+                        </div>
+
+                        {/* DEPARTMENT */}
+
+                        <div className="mt-5 rounded-lg bg-slate-50 p-4">
+
+                          <p className="text-sm font-semibold text-slate-700">
+                            Department
                           </p>
 
-                          <h3 className="mt-1 break-words text-xl font-bold text-slate-900">
-                            {consultation.chief_complaint ||
-                              "Not provided"}
-                          </h3>
-
-                          <p className="mt-2 text-sm text-slate-500">
-                            {formatDate(
-                              consultation.created_at
-                            )}
+                          <p className="mt-1 font-medium text-slate-900">
+                            {consultation.department ||
+                              "Not assigned"}
                           </p>
 
                         </div>
 
-                        <span
-                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${priorityClass(
-                            consultation.priority
-                          )}`}
+                        {/* AI SUMMARY */}
+
+                        <div className="mt-5">
+
+                          <p className="text-sm font-semibold text-slate-700">
+                            AI Summary
+                          </p>
+
+                          <p className="mt-2 leading-6 text-slate-700">
+                            {consultation.ai_summary ||
+                              "No AI summary available."}
+                          </p>
+
+                        </div>
+
+                        {/* STATUS */}
+
+                        <div className="mt-5">
+
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClass(
+                              consultation.status
+                            )}`}
+                          >
+                            Status:{" "}
+                            {consultation.status ||
+                              "Pending"}
+                          </span>
+
+                        </div>
+
+                        {/* REVIEW */}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openConsultation(
+                              consultation
+                            )
+                          }
+                          className="mt-6 w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-800"
                         >
-                          {consultation.priority ||
-                            "Normal"}
-                        </span>
+                          Review Consultation
+                        </button>
 
-                      </div>
+                      </article>
+                    );
+                  }
+                )}
 
-                      {/* =====================================
-                          DEPARTMENT
-                      ===================================== */}
+              </div>
+            )}
 
-                      <div className="mt-5 rounded-lg bg-slate-50 p-4">
+        </div>
 
-                        <p className="text-sm font-semibold text-slate-700">
-                          Department
-                        </p>
+        {/* =================================================
+            APPOINTMENTS SECTION
+        ================================================= */}
 
-                        <p className="mt-1 font-medium text-slate-900">
-                          {consultation.department ||
-                            "Not assigned"}
-                        </p>
+        <div>
 
-                      </div>
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 
-                      {/* =====================================
-                          AI SUMMARY
-                      ===================================== */}
+            <div>
 
-                      <div className="mt-5">
+              <h2 className="text-2xl font-bold text-slate-900">
+                My Appointments
+              </h2>
 
-                        <p className="text-sm font-semibold text-slate-700">
-                          AI Summary
-                        </p>
+              <p className="mt-1 text-slate-600">
+                Appointments assigned to you.
+              </p>
 
-                        <p className="mt-2 leading-6 text-slate-700">
-                          {consultation.ai_summary ||
-                            "No AI summary available."}
-                        </p>
+            </div>
 
-                      </div>
-
-                      {/* =====================================
-                          STATUS
-                      ===================================== */}
-
-                      <div className="mt-5">
-
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClass(
-                            consultation.status
-                          )}`}
-                        >
-                          Status:{" "}
-                          {consultation.status ||
-                            "Pending"}
-                        </span>
-
-                      </div>
-
-                      {/* =====================================
-                          REVIEW BUTTON
-                      ===================================== */}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openConsultation(
-                            consultation
-                          )
-                        }
-                        className="mt-6 w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-800"
-                      >
-                        Review Consultation
-                      </button>
-
-                    </article>
-                  );
-                }
+            {!appointmentsLoading &&
+              !appointmentsError && (
+                <span className="self-start rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 sm:self-auto">
+                  {appointments.length}{" "}
+                  {appointments.length === 1
+                    ? "appointment"
+                    : "appointments"}
+                </span>
               )}
+
+          </div>
+
+          {/* APPOINTMENT ERROR */}
+
+          {appointmentsError && (
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
+
+              <p className="font-semibold">
+                Unable to load appointments
+              </p>
+
+              <p className="mt-1 text-sm">
+                {appointmentsError}
+              </p>
 
             </div>
           )}
 
+          {/* APPOINTMENT LOADING */}
+
+          {appointmentsLoading && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
+
+              <p className="mt-4 text-slate-700">
+                Loading appointments...
+              </p>
+
+            </div>
+          )}
+
+          {/* NO APPOINTMENTS */}
+
+          {!appointmentsLoading &&
+            !appointmentsError &&
+            appointments.length === 0 && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+
+                <div className="text-4xl">
+                  📅
+                </div>
+
+                <h3 className="mt-4 text-xl font-semibold text-slate-900">
+                  No appointments
+                </h3>
+
+                <p className="mt-2 text-slate-600">
+                  You currently have no appointments
+                  assigned to you.
+                </p>
+
+                <p className="mt-4 text-sm text-slate-400">
+                  New appointments will appear
+                  automatically.
+                </p>
+
+              </div>
+            )}
+
+          {/* APPOINTMENTS */}
+
+          {!appointmentsLoading &&
+            !appointmentsError &&
+            appointments.length > 0 && (
+
+              <div className="grid gap-6 lg:grid-cols-2">
+
+                {appointments.map(
+                  (appointment) => {
+
+                    const patient =
+                      appointment.patient;
+
+                    return (
+                      <article
+                        key={appointment.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                      >
+
+                        {/* APPOINTMENT HEADER */}
+
+                        <div className="flex items-start justify-between gap-4">
+
+                          <div className="min-w-0">
+
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Appointment #
+                              {appointment.id}
+                            </p>
+
+                            <h3 className="mt-1 break-words text-xl font-bold text-slate-900">
+                              {patient?.full_name ||
+                                "Unknown Patient"}
+                            </h3>
+
+                          </div>
+
+                          <span
+                            className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${appointmentStatusClass(
+                              appointment.status
+                            )}`}
+                          >
+                            {appointment.status ||
+                              "booked"}
+                          </span>
+
+                        </div>
+
+                        {/* PATIENT INFORMATION */}
+
+                        <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
+
+                          <p className="text-sm">
+                            <span className="font-semibold">
+                              Patient ID:
+                            </span>{" "}
+                            {appointment.patient_id}
+                          </p>
+
+                          {patient?.village && (
+                            <p className="mt-2 text-sm">
+                              <span className="font-semibold">
+                                Village:
+                              </span>{" "}
+                              {patient.village}
+                            </p>
+                          )}
+
+                          {patient?.phone && (
+                            <p className="mt-2 text-sm">
+                              <span className="font-semibold">
+                                Phone:
+                              </span>{" "}
+                              {patient.phone}
+                            </p>
+                          )}
+
+                          {patient?.email && (
+                            <p className="mt-2 break-all text-sm">
+                              <span className="font-semibold">
+                                Email:
+                              </span>{" "}
+                              {patient.email}
+                            </p>
+                          )}
+
+                        </div>
+
+                        {/* DATE AND TIME */}
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+
+                          <div className="rounded-xl border border-slate-200 p-4">
+
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Appointment Date
+                            </p>
+
+                            <p className="mt-2 font-bold text-slate-900">
+                              {formatAppointmentDate(
+                                appointment.appointment_date
+                              )}
+                            </p>
+
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 p-4">
+
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Appointment Time
+                            </p>
+
+                            <p className="mt-2 font-bold text-slate-900">
+                              {formatAppointmentTime(
+                                appointment.appointment_time
+                              )}
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                        {/* DEPARTMENT AND QUEUE */}
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+
+                          <div className="rounded-xl bg-slate-50 p-4">
+
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Department
+                            </p>
+
+                            <p className="mt-2 font-semibold text-slate-900">
+                              {appointment.department ||
+                                "Not assigned"}
+                            </p>
+
+                          </div>
+
+                          <div className="rounded-xl bg-slate-50 p-4">
+
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Queue Number
+                            </p>
+
+                            <p className="mt-2 text-xl font-bold text-blue-700">
+                              {appointment.queue_number ??
+                                "Not assigned"}
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                        {/* PRIORITY */}
+
+                        <div className="mt-5">
+
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${priorityClass(
+                              appointment.priority
+                            )}`}
+                          >
+                            Priority:{" "}
+                            {appointment.priority ||
+                              "Normal"}
+                          </span>
+
+                        </div>
+
+                        {/* CONSULTATION */}
+
+                        {appointment.consultation_id && (
+                          <div className="mt-4">
+
+                            <p className="text-sm text-slate-600">
+                              <span className="font-semibold">
+                                Consultation:
+                              </span>{" "}
+                              #
+                              {
+                                appointment.consultation_id
+                              }
+                            </p>
+
+                          </div>
+                        )}
+
+                        {/* NOTES */}
+
+                        {appointment.notes && (
+                          <div className="mt-5 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+
+                            <p className="text-sm font-semibold text-yellow-800">
+                              Appointment Notes
+                            </p>
+
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-yellow-900">
+                              {appointment.notes}
+                            </p>
+
+                          </div>
+                        )}
+
+                      </article>
+                    );
+                  }
+                )}
+
+              </div>
+            )}
+
+        </div>
+
       </section>
 
       {/* ===================================================
-          REVIEW MODAL
+          CONSULTATION REVIEW MODAL
       =================================================== */}
 
       {selected && (
@@ -752,9 +1209,7 @@ export default function DoctorDashboard() {
 
           <div className="mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl sm:p-8">
 
-            {/* =============================================
-                MODAL HEADER
-            ============================================= */}
+            {/* MODAL HEADER */}
 
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
 
@@ -799,9 +1254,7 @@ export default function DoctorDashboard() {
 
             <div className="mt-6 space-y-6">
 
-              {/* ===========================================
-                  SYMPTOMS
-              =========================================== */}
+              {/* SYMPTOMS */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
 
@@ -816,9 +1269,7 @@ export default function DoctorDashboard() {
 
               </div>
 
-              {/* ===========================================
-                  MEDICAL HISTORY
-              =========================================== */}
+              {/* MEDICAL HISTORY */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
 
@@ -833,9 +1284,7 @@ export default function DoctorDashboard() {
 
               </div>
 
-              {/* ===========================================
-                  MEDICATIONS
-              =========================================== */}
+              {/* MEDICATIONS */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
 
@@ -850,9 +1299,7 @@ export default function DoctorDashboard() {
 
               </div>
 
-              {/* ===========================================
-                  ALLERGIES
-              =========================================== */}
+              {/* ALLERGIES */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
 
@@ -867,9 +1314,7 @@ export default function DoctorDashboard() {
 
               </div>
 
-              {/* ===========================================
-                  AI SUMMARY
-              =========================================== */}
+              {/* AI SUMMARY */}
 
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
 
@@ -884,9 +1329,7 @@ export default function DoctorDashboard() {
 
               </div>
 
-              {/* ===========================================
-                  AI INFORMATION
-              =========================================== */}
+              {/* AI INFORMATION */}
 
               <div className="grid gap-6 md:grid-cols-3">
 
@@ -997,9 +1440,7 @@ export default function DoctorDashboard() {
 
               </div>
 
-              {/* ===========================================
-                  STATUS
-              =========================================== */}
+              {/* STATUS */}
 
               <div>
 
@@ -1046,9 +1487,7 @@ export default function DoctorDashboard() {
 
               </div>
 
-              {/* ===========================================
-                  DOCTOR NOTES
-              =========================================== */}
+              {/* DOCTOR NOTES */}
 
               <div>
 
@@ -1075,9 +1514,7 @@ export default function DoctorDashboard() {
 
               </div>
 
-              {/* ===========================================
-                  ACTIONS
-              =========================================== */}
+              {/* ACTIONS */}
 
               <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
 

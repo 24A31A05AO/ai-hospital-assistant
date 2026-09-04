@@ -289,7 +289,7 @@ function getErrorMessage(
 // API REQUEST
 // ============================================================
 
-async function apiRequest<T>(
+export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -872,5 +872,50 @@ export async function unassignDoctor(
     {
       method: "PATCH",
     }
+  );
+}
+
+// ============================================================
+// DOCTOR APPOINTMENTS
+// ============================================================
+
+export type AppointmentPatient = {
+  id: number;
+  full_name: string;
+  email?: string | null;
+  phone?: string | null;
+  village?: string | null;
+};
+
+export type Appointment = {
+  id: number;
+
+  patient_id: number;
+  hospital_id: number;
+  doctor_id: number | null;
+  consultation_id: number | null;
+
+  department: string;
+
+  appointment_date: string;
+  appointment_time: string;
+
+  queue_number: number | null;
+
+  priority: string;
+  status: string;
+
+  notes: string | null;
+
+  created_at: string | null;
+
+  patient: AppointmentPatient | null;
+};
+
+export async function getDoctorAppointments(): Promise<
+  Appointment[]
+> {
+  return apiRequest<Appointment[]>(
+    "/appointments/doctor"
   );
 }
