@@ -947,7 +947,7 @@ export async function getDoctorAppointments(): Promise<
   Appointment[]
 > {
   return apiRequest<Appointment[]>(
-    "/appointments/doctor"
+    "/doctor/appointments"
   );
 }
 
