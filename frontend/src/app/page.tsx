@@ -21,15 +21,27 @@ export default function HomePage() {
   }, []);
 
   const goToLogin = () => {
+    setMenuOpen(false);
     router.push("/login");
   };
 
   const goToRegister = () => {
+    setMenuOpen(false);
     router.push("/register");
   };
 
+  const startConsultation = () => {
+    const token = localStorage.getItem("access_token");
+
+    if (token) {
+      router.push("/consultation");
+    } else {
+      router.push("/login");
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-white text-gray-900">
+    <main className="min-h-screen bg-white text-slate-900">
       {/* =====================================================
           NAVBAR
       ====================================================== */}
@@ -37,91 +49,95 @@ export default function HomePage() {
       <header
         className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
           scrolled
-            ? "border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur"
-            : "bg-transparent"
+            ? "border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl"
+            : "bg-white/80 backdrop-blur-md"
         }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-          {/* Logo */}
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6 lg:px-8">
+          {/* LOGO */}
 
           <button
+            type="button"
             onClick={() => router.push("/")}
             className="flex items-center gap-3"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-xl text-white shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-2xl font-bold text-white shadow-lg shadow-blue-600/20">
               +
             </div>
 
             <div className="text-left">
-              <div className="text-lg font-bold leading-tight text-gray-900">
+              <div className="text-base font-bold text-slate-950 sm:text-lg">
                 AI Hospital Assistant
               </div>
 
-              <div className="text-xs text-gray-500">
-                Smarter patient care
+              <div className="text-xs text-slate-500">
+                Smarter healthcare. Simpler care.
               </div>
             </div>
           </button>
 
-          {/* Desktop Navigation */}
+          {/* DESKTOP NAV */}
 
-          <nav className="hidden items-center gap-8 md:flex">
+          <nav className="hidden items-center gap-7 md:flex">
             <a
               href="#features"
-              className="text-sm font-medium text-gray-600 transition hover:text-blue-600"
+              className="text-sm font-medium text-slate-600 transition hover:text-blue-600"
             >
               Features
             </a>
 
             <a
               href="#how-it-works"
-              className="text-sm font-medium text-gray-600 transition hover:text-blue-600"
+              className="text-sm font-medium text-slate-600 transition hover:text-blue-600"
             >
               How It Works
             </a>
 
             <a
               href="#benefits"
-              className="text-sm font-medium text-gray-600 transition hover:text-blue-600"
+              className="text-sm font-medium text-slate-600 transition hover:text-blue-600"
             >
               Benefits
             </a>
 
             <button
+              type="button"
               onClick={goToLogin}
-              className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Sign In
             </button>
 
             <button
+              type="button"
               onClick={goToRegister}
-              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700"
             >
               Get Started
             </button>
           </nav>
 
-          {/* Mobile Menu Button */}
+          {/* MOBILE BUTTON */}
 
           <button
+            type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-700 md:hidden"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xl text-slate-700 md:hidden"
             aria-label="Toggle navigation"
           >
-            {menuOpen ? "✕" : "☰"}
+            {menuOpen ? "×" : "☰"}
           </button>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* MOBILE MENU */}
 
         {menuOpen && (
-          <div className="border-t border-gray-200 bg-white px-6 py-5 shadow-lg md:hidden">
+          <div className="border-t border-slate-200 bg-white px-5 py-5 shadow-lg md:hidden">
             <div className="flex flex-col gap-4">
               <a
                 href="#features"
                 onClick={() => setMenuOpen(false)}
-                className="text-sm font-medium text-gray-700"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Features
               </a>
@@ -129,7 +145,7 @@ export default function HomePage() {
               <a
                 href="#how-it-works"
                 onClick={() => setMenuOpen(false)}
-                className="text-sm font-medium text-gray-700"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 How It Works
               </a>
@@ -137,19 +153,21 @@ export default function HomePage() {
               <a
                 href="#benefits"
                 onClick={() => setMenuOpen(false)}
-                className="text-sm font-medium text-gray-700"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Benefits
               </a>
 
               <button
+                type="button"
                 onClick={goToLogin}
-                className="rounded-lg border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700"
+                className="rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700"
               >
                 Sign In
               </button>
 
               <button
+                type="button"
                 onClick={goToRegister}
                 className="rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white"
               >
@@ -165,168 +183,227 @@ export default function HomePage() {
       ====================================================== */}
 
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-cyan-50 pt-32">
-        {/* Decorative background */}
+        {/* BACKGROUND DECORATION */}
 
-        <div className="pointer-events-none absolute -left-40 top-20 h-80 w-80 rounded-full bg-blue-200/30 blur-3xl" />
+        <div className="pointer-events-none absolute -left-40 top-20 h-96 w-96 rounded-full bg-blue-200/40 blur-3xl" />
 
-        <div className="pointer-events-none absolute -right-40 top-40 h-96 w-96 rounded-full bg-cyan-200/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-40 top-32 h-[500px] w-[500px] rounded-full bg-cyan-200/40 blur-3xl" />
 
-        <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-10 lg:px-8 lg:pb-28">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-100/30 blur-3xl" />
+
+        <div className="relative mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-6 lg:px-8 lg:pb-28">
           <div className="grid items-center gap-14 lg:grid-cols-2">
-            {/* Hero Text */}
+            {/* HERO CONTENT */}
 
             <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 shadow-sm">
-                <span className="flex h-2 w-2 rounded-full bg-green-500" />
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm">
+                <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
                 AI-powered healthcare assistance
               </div>
 
-              <h1 className="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-gray-950 sm:text-5xl lg:text-6xl">
-                Healthcare assistance,
+              <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+                Your healthcare journey,
                 <span className="block text-blue-600">
                   made simpler.
                 </span>
               </h1>
 
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
-                AI Hospital Assistant helps patients organize their
-                symptoms and medical information before a consultation,
-                while helping healthcare teams review patient information
-                more efficiently.
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+                Describe your symptoms, organize your health information,
+                connect with the right department, and manage appointments
+                through one simple digital healthcare assistant.
               </p>
+
+              {/* ACTIONS */}
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <button
-                  onClick={goToRegister}
-                  className="rounded-xl bg-blue-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
+                  type="button"
+                  onClick={startConsultation}
+                  className="rounded-xl bg-blue-600 px-7 py-3.5 text-base font-bold text-white shadow-xl shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
                 >
-                  Get Started
+                  Start Consultation
                 </button>
 
                 <button
-                  onClick={goToLogin}
-                  className="rounded-xl border border-gray-300 bg-white px-7 py-3.5 text-base font-semibold text-gray-700 transition hover:bg-gray-50"
+                  type="button"
+                  onClick={goToRegister}
+                  className="rounded-xl border border-slate-300 bg-white px-7 py-3.5 text-base font-bold text-slate-700 transition hover:bg-slate-50"
                 >
-                  Sign In
+                  Create Account
                 </button>
               </div>
 
-              <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-500">
+              {/* TRUST POINTS */}
+
+              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-500">
                 <span className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
+                  <span className="font-bold text-green-600">✓</span>
                   Patient-friendly
                 </span>
 
                 <span className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  AI-assisted summaries
+                  <span className="font-bold text-green-600">✓</span>
+                  AI-assisted
                 </span>
 
                 <span className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  Doctor review workflow
+                  <span className="font-bold text-green-600">✓</span>
+                  Doctor review
                 </span>
               </div>
             </div>
 
-            {/* Hero Product Preview */}
+            {/* HERO DASHBOARD PREVIEW */}
 
             <div className="relative">
-              <div className="absolute -inset-5 rounded-[2rem] bg-blue-200/30 blur-2xl" />
+              <div className="absolute -inset-6 rounded-[2rem] bg-blue-300/30 blur-3xl" />
 
-              <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl">
-                {/* Browser header */}
+              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+                {/* APP HEADER */}
 
-                <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-5 py-4">
-                  <div className="h-3 w-3 rounded-full bg-red-300" />
-                  <div className="h-3 w-3 rounded-full bg-yellow-300" />
-                  <div className="h-3 w-3 rounded-full bg-green-300" />
+                <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 font-bold text-white">
+                      +
+                    </div>
 
-                  <div className="ml-4 flex-1 rounded-md bg-white px-4 py-1.5 text-xs text-gray-400">
-                    AI Hospital Assistant
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">
+                        Patient Portal
+                      </p>
+
+                      <p className="text-xs text-slate-500">
+                        AI Hospital Assistant
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                    <span className="h-2 w-2 rounded-full bg-green-500" />
+                    Online
                   </div>
                 </div>
 
-                <div className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">
-                        Patient Assistant
+                {/* DASHBOARD */}
+
+                <div className="bg-slate-50 p-5 sm:p-6">
+                  {/* WELCOME */}
+
+                  <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 p-5 text-white">
+                    <p className="text-sm text-blue-100">
+                      Welcome back
+                    </p>
+
+                    <h3 className="mt-1 text-2xl font-bold">
+                      How can we help today?
+                    </h3>
+
+                    <p className="mt-2 max-w-md text-sm leading-6 text-blue-50">
+                      Get assistance before your next hospital visit.
+                    </p>
+                  </div>
+
+                  {/* QUICK ACTIONS */}
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-xl">
+                        💬
+                      </div>
+
+                      <p className="text-sm font-bold text-slate-900">
+                        Consultation
                       </p>
 
-                      <h3 className="mt-1 text-2xl font-bold text-gray-900">
-                        How are you feeling?
-                      </h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        AI-assisted guidance
+                      </p>
                     </div>
 
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-xl text-blue-600">
-                      +
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-xl">
+                        📅
+                      </div>
+
+                      <p className="text-sm font-bold text-slate-900">
+                        Appointment
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        Book with a doctor
+                      </p>
                     </div>
                   </div>
 
-                  <div className="mt-7 space-y-4">
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        Chief complaint
-                      </p>
+                  {/* CONSULTATION SUMMARY */}
 
-                      <p className="mt-2 font-medium text-gray-800">
-                        Cold and sneezing
-                      </p>
+                  <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Latest consultation
+                        </p>
+
+                        <p className="mt-1 font-bold text-slate-900">
+                          Cold and sneezing
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                        Reviewed
+                      </span>
                     </div>
 
-                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-500">
+                    <div className="mt-4 rounded-lg bg-blue-50 p-3">
+                      <p className="text-xs font-semibold text-blue-600">
                         AI-assisted summary
                       </p>
 
-                      <p className="mt-2 text-sm leading-6 text-blue-900">
-                        Patient reports cold symptoms with sneezing.
-                        Relevant information has been organized for
-                        healthcare review.
+                      <p className="mt-1 text-sm leading-6 text-blue-950">
+                        Symptoms organized for healthcare review with
+                        relevant patient information.
                       </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="rounded-xl border border-gray-200 p-4">
-                        <p className="text-xs text-gray-400">
-                          Department
-                        </p>
-
-                        <p className="mt-1 text-sm font-semibold text-gray-800">
-                          General Medicine
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-gray-200 p-4">
-                        <p className="text-xs text-gray-400">
-                          Priority
-                        </p>
-
-                        <span className="mt-2 inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                          Low
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Floating card */}
+              {/* FLOATING APPOINTMENT CARD */}
 
-              <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-xl sm:block">
+              <div className="absolute -bottom-6 -left-5 hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xl sm:block">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-600">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-xl">
                     ✓
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500">
-                      Consultation
+                    <p className="text-xs text-slate-500">
+                      Appointment
                     </p>
 
-                    <p className="text-sm font-bold text-gray-900">
-                      Ready for review
+                    <p className="text-sm font-bold text-slate-900">
+                      Successfully booked
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* FLOATING DOCTOR CARD */}
+
+              <div className="absolute -right-5 top-20 hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xl sm:block">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-lg">
+                    👨‍⚕️
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Care team
+                    </p>
+
+                    <p className="text-sm font-bold text-slate-900">
+                      Doctor review
                     </p>
                   </div>
                 </div>
@@ -337,41 +414,35 @@ export default function HomePage() {
       </section>
 
       {/* =====================================================
-          TRUST / INTRO
+          INTRO / STATS
       ====================================================== */}
 
-      <section className="border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-          <div className="grid gap-8 text-center sm:grid-cols-3">
-            <div>
-              <div className="text-3xl font-bold text-blue-600">
-                AI
-              </div>
+      <section className="border-b border-slate-100 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-12 sm:px-6 lg:px-8">
+          <div className="grid gap-8 text-center md:grid-cols-4">
+            <StatCard
+              number="24/7"
+              title="Digital Assistance"
+              description="Access your healthcare tools whenever you need them."
+            />
 
-              <p className="mt-2 text-sm text-gray-500">
-                Organize patient information
-              </p>
-            </div>
+            <StatCard
+              number="AI"
+              title="Guided Consultation"
+              description="Organize symptoms and information before seeing a doctor."
+            />
 
-            <div>
-              <div className="text-3xl font-bold text-blue-600">
-                Patient
-              </div>
+            <StatCard
+              number="1"
+              title="Patient Dashboard"
+              description="Keep consultations and appointments together."
+            />
 
-              <p className="mt-2 text-sm text-gray-500">
-                Simple consultation experience
-              </p>
-            </div>
-
-            <div>
-              <div className="text-3xl font-bold text-blue-600">
-                Doctor
-              </div>
-
-              <p className="mt-2 text-sm text-gray-500">
-                Review information efficiently
-              </p>
-            </div>
+            <StatCard
+              number="Care"
+              title="Doctor Workflow"
+              description="Healthcare teams can review organized patient information."
+            />
           </div>
         </div>
       </section>
@@ -384,70 +455,48 @@ export default function HomePage() {
         id="features"
         className="bg-white py-24"
       >
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="text-sm font-bold uppercase tracking-widest text-blue-600">
-              Features
-            </span>
-
-            <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
-              Everything needed for a smoother consultation
-            </h2>
-
-            <p className="mt-4 text-lg leading-8 text-gray-600">
-              A simple digital workflow connecting patients,
-              AI-assisted information collection, and healthcare
-              professionals.
-            </p>
-          </div>
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <SectionHeading
+            eyebrow="FEATURES"
+            title="Everything you need for a smoother hospital experience"
+            description="AI Hospital Assistant connects the patient journey from initial consultation to appointment management and healthcare review."
+          />
 
           <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {/* Feature 1 */}
-
             <FeatureCard
               icon="💬"
-              title="Patient Consultation"
-              description="Patients can describe their symptoms and provide important medical information through a guided consultation."
+              title="AI Consultation"
+              description="Answer guided questions about your symptoms and health information before meeting a healthcare professional."
             />
-
-            {/* Feature 2 */}
 
             <FeatureCard
               icon="🤖"
               title="AI-Assisted Summary"
-              description="Patient-provided information can be organized into a concise summary to support the healthcare review process."
+              description="Important information can be organized into a concise summary that is easier for healthcare professionals to review."
             />
 
-            {/* Feature 3 */}
-
             <FeatureCard
-              icon="🩺"
+              icon="👨‍⚕️"
               title="Doctor Review"
               description="Doctors can review assigned consultations, add notes, and update the consultation status."
             />
 
-            {/* Feature 4 */}
-
             <FeatureCard
-              icon="📋"
-              title="Consultation History"
-              description="Patients can view their previous consultations, summaries, status, assigned department, and doctor information."
+              icon="📅"
+              title="Appointment Booking"
+              description="Patients can choose a hospital, department, doctor, date and time to request an appointment."
             />
-
-            {/* Feature 5 */}
 
             <FeatureCard
               icon="🏥"
-              title="Department Guidance"
-              description="Consultation information can help direct patients toward the appropriate hospital department."
+              title="Hospital Departments"
+              description="Choose from available departments to help direct your appointment toward the appropriate area of care."
             />
 
-            {/* Feature 6 */}
-
             <FeatureCard
-              icon="🔐"
-              title="Role-Based Access"
-              description="Separate patient, doctor, and administrator workflows help keep application functionality organized."
+              icon="📋"
+              title="Patient History"
+              description="Keep track of previous consultations, appointment information and healthcare summaries from your dashboard."
             />
           </div>
         </div>
@@ -459,42 +508,141 @@ export default function HomePage() {
 
       <section
         id="how-it-works"
-        className="bg-gray-50 py-24"
+        className="bg-slate-50 py-24"
       >
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="text-sm font-bold uppercase tracking-widest text-blue-600">
-              How It Works
-            </span>
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <SectionHeading
+            eyebrow="HOW IT WORKS"
+            title="From symptoms to care in a few simple steps"
+            description="The platform is designed to reduce unnecessary complexity for patients while giving doctors organized information."
+          />
 
-            <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
-              From symptoms to consultation
-            </h2>
-
-            <p className="mt-4 text-lg text-gray-600">
-              A straightforward workflow designed around the patient
-              and healthcare team.
-            </p>
-          </div>
-
-          <div className="relative mt-16 grid gap-8 md:grid-cols-3">
+          <div className="mt-16 grid gap-6 md:grid-cols-4">
             <StepCard
               number="01"
-              title="Tell us what is wrong"
-              description="Enter your chief complaint, symptoms, medical history, medications, and allergies."
+              icon="👤"
+              title="Create your account"
+              description="Register as a patient and securely access your healthcare dashboard."
             />
 
             <StepCard
               number="02"
-              title="Information is organized"
-              description="The platform organizes the submitted information and generates an AI-assisted summary."
+              icon="💬"
+              title="Start consultation"
+              description="Tell the assistant about your symptoms and relevant health information."
             />
 
             <StepCard
               number="03"
-              title="Healthcare review"
-              description="The assigned doctor can review the consultation, add notes, and update its status."
+              icon="🤖"
+              title="Information is organized"
+              description="Your consultation information is organized into an easy-to-review summary."
             />
+
+            <StepCard
+              number="04"
+              icon="📅"
+              title="Continue your care"
+              description="Book appointments and manage your healthcare journey from the patient dashboard."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          PATIENT EXPERIENCE
+      ====================================================== */}
+
+      <section className="bg-white py-24">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-14 lg:grid-cols-2">
+            {/* LEFT */}
+
+            <div>
+              <span className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">
+                FOR PATIENTS
+              </span>
+
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                Spend less time figuring out what to do next.
+              </h2>
+
+              <p className="mt-5 text-lg leading-8 text-slate-600">
+                Instead of navigating multiple disconnected steps,
+                patients can use one dashboard to start consultations,
+                review their information and manage appointments.
+              </p>
+
+              <div className="mt-8 space-y-4">
+                <CheckItem text="Guided symptom consultation" />
+
+                <CheckItem text="Organized medical information" />
+
+                <CheckItem text="Simple appointment booking" />
+
+                <CheckItem text="Consultation and appointment history" />
+              </div>
+
+              <button
+                type="button"
+                onClick={goToRegister}
+                className="mt-9 rounded-xl bg-blue-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+              >
+                Create Patient Account
+              </button>
+            </div>
+
+            {/* RIGHT */}
+
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm sm:p-8">
+              <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Patient Dashboard
+                    </p>
+
+                    <h3 className="mt-1 text-xl font-bold text-slate-900">
+                      Your care at a glance
+                    </h3>
+                  </div>
+
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-lg">
+                    👤
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  <DashboardRow
+                    icon="💬"
+                    title="Start Consultation"
+                    subtitle="Describe your symptoms"
+                    status="Available"
+                  />
+
+                  <DashboardRow
+                    icon="📋"
+                    title="My Consultations"
+                    subtitle="View your health summaries"
+                    status="3 records"
+                  />
+
+                  <DashboardRow
+                    icon="📅"
+                    title="My Appointments"
+                    subtitle="Manage upcoming visits"
+                    status="1 upcoming"
+                  />
+
+                  <DashboardRow
+                    icon="🏥"
+                    title="Find Department"
+                    subtitle="Choose the right department"
+                    status="Available"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -505,87 +653,34 @@ export default function HomePage() {
 
       <section
         id="benefits"
-        className="bg-white py-24"
+        className="bg-slate-950 py-24 text-white"
       >
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid items-center gap-16 lg:grid-cols-2">
-            <div>
-              <span className="text-sm font-bold uppercase tracking-widest text-blue-600">
-                Built for healthcare workflows
-              </span>
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+          <SectionHeading
+            dark
+            eyebrow="BENEFITS"
+            title="Designed around better healthcare workflows"
+            description="The platform helps patients organize information while giving healthcare teams a clearer starting point for review."
+          />
 
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
-                Better information before the consultation begins.
-              </h2>
+          <div className="mt-16 grid gap-6 md:grid-cols-3">
+            <DarkBenefitCard
+              icon="❤️"
+              title="For Patients"
+              description="A simpler way to describe symptoms, access consultations and manage appointments."
+            />
 
-              <p className="mt-5 text-lg leading-8 text-gray-600">
-                AI Hospital Assistant is designed to reduce repetitive
-                information collection and make patient information
-                easier to review.
-              </p>
+            <DarkBenefitCard
+              icon="👨‍⚕️"
+              title="For Doctors"
+              description="Review organized patient information and focus more time on clinical interaction."
+            />
 
-              <div className="mt-8 space-y-5">
-                <Benefit
-                  title="For Patients"
-                  description="A structured way to describe symptoms and keep track of consultation history."
-                />
-
-                <Benefit
-                  title="For Doctors"
-                  description="A dedicated dashboard for reviewing assigned consultations and recording doctor notes."
-                />
-
-                <Benefit
-                  title="For Hospitals"
-                  description="A digital workflow that can help organize patient intake and consultation information."
-                />
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-gray-200 bg-gray-50 p-8 shadow-sm">
-              <div className="rounded-2xl bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      Consultation workflow
-                    </p>
-
-                    <p className="mt-1 text-xl font-bold text-gray-900">
-                      Patient → AI → Doctor
-                    </p>
-                  </div>
-
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-xl">
-                    🩺
-                  </div>
-                </div>
-
-                <div className="mt-8 space-y-4">
-                  <WorkflowItem
-                    number="1"
-                    title="Patient submits information"
-                    active
-                  />
-
-                  <WorkflowItem
-                    number="2"
-                    title="AI-assisted summary"
-                    active
-                  />
-
-                  <WorkflowItem
-                    number="3"
-                    title="Doctor reviews"
-                    active
-                  />
-
-                  <WorkflowItem
-                    number="4"
-                    title="Doctor notes & status"
-                  />
-                </div>
-              </div>
-            </div>
+            <DarkBenefitCard
+              icon="🏥"
+              title="For Hospitals"
+              description="Create a more structured digital workflow for patient intake, consultation and appointments."
+            />
           </div>
         </div>
       </section>
@@ -594,28 +689,38 @@ export default function HomePage() {
           CTA
       ====================================================== */}
 
-      <section className="bg-blue-600 py-20">
-        <div className="mx-auto max-w-4xl px-6 text-center lg:px-8">
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Ready to try AI Hospital Assistant?
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-cyan-500 py-20">
+        <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+
+        <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+
+        <div className="relative mx-auto max-w-4xl px-5 text-center sm:px-6">
+          <span className="text-sm font-bold uppercase tracking-[0.2em] text-blue-100">
+            GET STARTED
+          </span>
+
+          <h2 className="mt-4 text-3xl font-extrabold text-white sm:text-4xl lg:text-5xl">
+            Make your next healthcare visit simpler.
           </h2>
 
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-blue-100">
-            Create an account and start organizing your healthcare
-            consultation information.
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-blue-50">
+            Start a consultation, organize your information and manage
+            your appointments from one patient-friendly platform.
           </p>
 
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <button
+              type="button"
               onClick={goToRegister}
-              className="rounded-xl bg-white px-7 py-3.5 font-semibold text-blue-700 shadow-lg transition hover:bg-blue-50"
+              className="rounded-xl bg-white px-7 py-3.5 font-bold text-blue-700 shadow-xl transition hover:bg-blue-50"
             >
               Create Account
             </button>
 
             <button
+              type="button"
               onClick={goToLogin}
-              className="rounded-xl border border-blue-300 bg-blue-500 px-7 py-3.5 font-semibold text-white transition hover:bg-blue-400"
+              className="rounded-xl border border-white/40 bg-white/10 px-7 py-3.5 font-bold text-white backdrop-blur transition hover:bg-white/20"
             >
               Sign In
             </button>
@@ -627,100 +732,104 @@ export default function HomePage() {
           FOOTER
       ====================================================== */}
 
-      <footer className="border-t border-gray-200 bg-gray-950 text-gray-300">
-        <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-          <div className="grid gap-10 md:grid-cols-4">
-            <div className="md:col-span-2">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-lg text-white">
-                  +
-                </div>
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 font-bold text-white">
+              +
+            </div>
 
-                <div>
-                  <p className="font-bold text-white">
-                    AI Hospital Assistant
-                  </p>
-
-                  <p className="text-xs text-gray-500">
-                    Smarter patient care
-                  </p>
-                </div>
-              </div>
-
-              <p className="mt-5 max-w-md text-sm leading-6 text-gray-400">
-                An AI-assisted healthcare platform designed to
-                organize patient information and support consultation
-                workflows.
+            <div>
+              <p className="text-sm font-bold text-slate-900">
+                AI Hospital Assistant
               </p>
-            </div>
 
-            <div>
-              <h3 className="font-semibold text-white">
-                Platform
-              </h3>
-
-              <div className="mt-4 space-y-3 text-sm">
-                <button
-                  onClick={() => router.push("/login")}
-                  className="block text-gray-400 transition hover:text-white"
-                >
-                  Sign In
-                </button>
-
-                <button
-                  onClick={() => router.push("/register")}
-                  className="block text-gray-400 transition hover:text-white"
-                >
-                  Create Account
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-white">
-                Explore
-              </h3>
-
-              <div className="mt-4 space-y-3 text-sm">
-                <a
-                  href="#features"
-                  className="block text-gray-400 transition hover:text-white"
-                >
-                  Features
-                </a>
-
-                <a
-                  href="#how-it-works"
-                  className="block text-gray-400 transition hover:text-white"
-                >
-                  How It Works
-                </a>
-
-                <a
-                  href="#benefits"
-                  className="block text-gray-400 transition hover:text-white"
-                >
-                  Benefits
-                </a>
-              </div>
+              <p className="text-xs text-slate-500">
+                Smarter healthcare. Simpler care.
+              </p>
             </div>
           </div>
 
-          <div className="mt-10 border-t border-gray-800 pt-8">
-            <p className="text-center text-xs leading-5 text-gray-500">
-              © {new Date().getFullYear()} AI Hospital Assistant.
-              All rights reserved.
-            </p>
-
-            <p className="mx-auto mt-3 max-w-3xl text-center text-xs leading-5 text-gray-600">
-              This platform provides AI-assisted information
-              organization and is not a substitute for professional
-              medical diagnosis, treatment, or emergency care.
-            </p>
+          <div className="text-sm text-slate-500">
+            AI-assisted healthcare platform
           </div>
         </div>
       </footer>
     </main>
+  );
+}
+
+/* ============================================================
+   SECTION HEADING
+============================================================ */
+
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+  dark = false,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  dark?: boolean;
+}) {
+  return (
+    <div className="mx-auto max-w-3xl text-center">
+      <span
+        className={`text-sm font-bold uppercase tracking-[0.2em] ${
+          dark ? "text-blue-300" : "text-blue-600"
+        }`}
+      >
+        {eyebrow}
+      </span>
+
+      <h2
+        className={`mt-3 text-3xl font-bold tracking-tight sm:text-4xl ${
+          dark ? "text-white" : "text-slate-950"
+        }`}
+      >
+        {title}
+      </h2>
+
+      <p
+        className={`mt-4 text-lg leading-8 ${
+          dark ? "text-slate-300" : "text-slate-600"
+        }`}
+      >
+        {description}
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   STAT CARD
+============================================================ */
+
+function StatCard({
+  number,
+  title,
+  description,
+}: {
+  number: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="px-4">
+      <div className="text-3xl font-extrabold text-blue-600">
+        {number}
+      </div>
+
+      <h3 className="mt-2 font-bold text-slate-900">
+        {title}
+      </h3>
+
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        {description}
+      </p>
+    </div>
   );
 }
 
@@ -738,16 +847,16 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="group rounded-2xl border border-gray-200 bg-white p-7 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-2xl transition group-hover:bg-blue-100">
+    <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl">
+      <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-2xl transition group-hover:bg-blue-100">
         {icon}
       </div>
 
-      <h3 className="mt-5 text-lg font-bold text-gray-900">
+      <h3 className="text-xl font-bold text-slate-900">
         {title}
       </h3>
 
-      <p className="mt-3 text-sm leading-6 text-gray-600">
+      <p className="mt-3 text-sm leading-7 text-slate-600">
         {description}
       </p>
     </div>
@@ -760,24 +869,32 @@ function FeatureCard({
 
 function StepCard({
   number,
+  icon,
   title,
   description,
 }: {
   number: string;
+  icon: string;
   title: string;
   description: string;
 }) {
   return (
-    <div className="relative rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-        {number}
+    <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-2xl">
+          {icon}
+        </div>
+
+        <span className="text-sm font-extrabold text-blue-200">
+          {number}
+        </span>
       </div>
 
-      <h3 className="mt-6 text-xl font-bold text-gray-900">
+      <h3 className="mt-6 text-lg font-bold text-slate-900">
         {title}
       </h3>
 
-      <p className="mt-3 leading-7 text-gray-600">
+      <p className="mt-3 text-sm leading-6 text-slate-600">
         {description}
       </p>
     </div>
@@ -785,79 +902,91 @@ function StepCard({
 }
 
 /* ============================================================
-   BENEFIT
+   CHECK ITEM
 ============================================================ */
 
-function Benefit({
-  title,
-  description,
+function CheckItem({
+  text,
 }: {
-  title: string;
-  description: string;
+  text: string;
 }) {
   return (
-    <div className="flex gap-4">
-      <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
+    <div className="flex items-center gap-3">
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
         ✓
       </div>
 
-      <div>
-        <h3 className="font-bold text-gray-900">
-          {title}
-        </h3>
-
-        <p className="mt-1 text-sm leading-6 text-gray-600">
-          {description}
-        </p>
-      </div>
+      <span className="font-medium text-slate-700">
+        {text}
+      </span>
     </div>
   );
 }
 
 /* ============================================================
-   WORKFLOW ITEM
+   DASHBOARD ROW
 ============================================================ */
 
-function WorkflowItem({
-  number,
+function DashboardRow({
+  icon,
   title,
-  active = false,
+  subtitle,
+  status,
 }: {
-  number: string;
+  icon: string;
   title: string;
-  active?: boolean;
+  subtitle: string;
+  status: string;
 }) {
   return (
-    <div
-      className={`flex items-center gap-4 rounded-xl border p-4 ${
-        active
-          ? "border-blue-100 bg-blue-50"
-          : "border-gray-200 bg-white"
-      }`}
-    >
-      <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-          active
-            ? "bg-blue-600 text-white"
-            : "bg-gray-100 text-gray-500"
-        }`}
-      >
-        {number}
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-lg">
+        {icon}
       </div>
 
-      <span
-        className={`text-sm font-medium ${
-          active ? "text-blue-900" : "text-gray-500"
-        }`}
-      >
-        {title}
-      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-slate-900">
+          {title}
+        </p>
 
-      {active && (
-        <span className="ml-auto text-green-600">
-          ✓
-        </span>
-      )}
+        <p className="truncate text-xs text-slate-500">
+          {subtitle}
+        </p>
+      </div>
+
+      <span className="shrink-0 text-xs font-semibold text-blue-600">
+        {status}
+      </span>
+    </div>
+  );
+}
+
+/* ============================================================
+   DARK BENEFIT CARD
+============================================================ */
+
+function DarkBenefitCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-7 transition hover:-translate-y-1 hover:border-slate-700">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-800 text-2xl">
+        {icon}
+      </div>
+
+      <h3 className="mt-6 text-xl font-bold text-white">
+        {title}
+      </h3>
+
+      <p className="mt-3 text-sm leading-7 text-slate-300">
+        {description}
+      </p>
     </div>
   );
 }
