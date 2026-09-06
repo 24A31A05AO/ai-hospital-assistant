@@ -25,7 +25,6 @@ export default function DashboardPage() {
     async function loadUser() {
       const token = localStorage.getItem("access_token");
 
-      // No JWT -> go to login
       if (!token) {
         router.replace("/login");
         return;
@@ -34,28 +33,23 @@ export default function DashboardPage() {
       try {
         const data = await getCurrentUser();
 
-        console.log("Current user:", data);
-
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         setUser(data);
       } catch (err) {
         console.error("Failed to load user:", err);
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
-        // Remove invalid/expired token
         localStorage.removeItem("access_token");
+        localStorage.removeItem("user_role");
+        localStorage.removeItem("user_id");
 
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Failed to load user");
-        }
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load user"
+        );
       } finally {
         if (mounted) {
           setLoading(false);
@@ -70,10 +64,6 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-  // ============================================================
-  // LOADING
-  // ============================================================
-
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -86,17 +76,11 @@ export default function DashboardPage() {
     );
   }
 
-  // ============================================================
-  // ERROR
-  // ============================================================
-
   if (error) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-6">
         <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-sm">
-          <div className="mb-4 text-4xl">
-            ⚠️
-          </div>
+          <div className="mb-4 text-4xl">⚠️</div>
 
           <h2 className="text-xl font-bold text-red-700">
             Failed to load user
@@ -110,9 +94,11 @@ export default function DashboardPage() {
             type="button"
             onClick={() => {
               localStorage.removeItem("access_token");
+              localStorage.removeItem("user_role");
+              localStorage.removeItem("user_id");
               router.push("/login");
             }}
-            className="mt-6 rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white transition hover:bg-slate-800"
+            className="mt-6 rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-800"
           >
             Back to Login
           </button>
@@ -120,10 +106,6 @@ export default function DashboardPage() {
       </main>
     );
   }
-
-  // ============================================================
-  // NO USER
-  // ============================================================
 
   if (!user) {
     return (
@@ -145,13 +127,9 @@ export default function DashboardPage() {
     );
   }
 
-  // ============================================================
-  // SAFE USER VALUES
-  // ============================================================
-
   const fullName =
     typeof user.full_name === "string" &&
-    user.full_name.trim().length > 0
+    user.full_name.trim()
       ? user.full_name.trim()
       : "Patient";
 
@@ -160,33 +138,34 @@ export default function DashboardPage() {
 
   const email =
     typeof user.email === "string" &&
-    user.email.trim().length > 0
+    user.email.trim()
       ? user.email
       : "Email not available";
 
   const phone =
     typeof user.phone === "string" &&
-    user.phone.trim().length > 0
+    user.phone.trim()
       ? user.phone
       : "Phone not available";
 
   const role =
     typeof user.role === "string" &&
-    user.role.trim().length > 0
+    user.role.trim()
       ? user.role
       : "patient";
 
-  // ============================================================
-  // DASHBOARD
-  // ============================================================
+  function logout() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user_role");
+    localStorage.removeItem("user_id");
+
+    router.push("/login");
+  }
 
   return (
     <main className="min-h-screen bg-slate-50">
 
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
-
+      {/* HEADER */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
 
@@ -202,10 +181,7 @@ export default function DashboardPage() {
 
           <button
             type="button"
-            onClick={() => {
-              localStorage.removeItem("access_token");
-              router.push("/login");
-            }}
+            onClick={logout}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
           >
             Logout
@@ -214,16 +190,11 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* ======================================================
-          MAIN CONTENT
-      ====================================================== */}
-
+      {/* MAIN */}
       <section className="mx-auto max-w-6xl px-6 py-10">
 
-        {/* Welcome */}
-
+        {/* WELCOME */}
         <div className="mb-8">
-
           <h2 className="text-3xl font-bold text-slate-900">
             Welcome, {firstName}
           </h2>
@@ -231,19 +202,12 @@ export default function DashboardPage() {
           <p className="mt-2 text-slate-600">
             How can we help you today?
           </p>
-
         </div>
 
-        {/* ====================================================
-            DASHBOARD CARDS
-        ==================================================== */}
+        {/* DASHBOARD CARDS */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
-        <div className="grid gap-6 md:grid-cols-3">
-
-          {/* ==================================================
-              START CONSULTATION
-          ================================================== */}
-
+          {/* START CONSULTATION */}
           <button
             type="button"
             onClick={() => router.push("/consultation")}
@@ -261,12 +225,13 @@ export default function DashboardPage() {
               Tell the assistant about your symptoms and get
               guidance.
             </p>
+
+            <div className="mt-5 inline-block rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white">
+              Start Consultation
+            </div>
           </button>
 
-          {/* ==================================================
-              MY CONSULTATIONS
-          ================================================== */}
-
+          {/* MY CONSULTATIONS */}
           <button
             type="button"
             onClick={() => router.push("/consultations")}
@@ -283,14 +248,64 @@ export default function DashboardPage() {
             <p className="mt-2 text-sm text-slate-600">
               View your previous consultations and AI summaries.
             </p>
+
+            <div className="mt-5 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              View Consultations
+            </div>
           </button>
 
-          {/* ==================================================
-              MY PROFILE
-          ================================================== */}
+          {/* BOOK APPOINTMENT */}
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/patient/appointments/book")
+            }
+            className="rounded-2xl bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+          >
+            <div className="mb-4 text-3xl">
+              📅
+            </div>
 
+            <h3 className="text-xl font-semibold text-slate-900">
+              Book Appointment
+            </h3>
+
+            <p className="mt-2 text-sm text-slate-600">
+              Schedule an appointment with a doctor.
+            </p>
+
+            <div className="mt-5 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
+              Book Appointment
+            </div>
+          </button>
+
+          {/* MY APPOINTMENTS */}
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/patient/appointments")
+            }
+            className="rounded-2xl bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+          >
+            <div className="mb-4 text-3xl">
+              🗓️
+            </div>
+
+            <h3 className="text-xl font-semibold text-slate-900">
+              My Appointments
+            </h3>
+
+            <p className="mt-2 text-sm text-slate-600">
+              View your upcoming and previous appointments.
+            </p>
+
+            <div className="mt-5 inline-block rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white">
+              View Appointments
+            </div>
+          </button>
+
+          {/* MY PROFILE */}
           <div className="rounded-2xl bg-white p-6 shadow-sm">
-
             <div className="mb-4 text-3xl">
               👤
             </div>
@@ -299,7 +314,7 @@ export default function DashboardPage() {
               My Profile
             </h3>
 
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-3 text-sm text-slate-600">
               {email}
             </p>
 
@@ -310,15 +325,11 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm capitalize text-slate-500">
               Role: {role}
             </p>
-
           </div>
 
         </div>
 
-        {/* ====================================================
-            ACCOUNT INFORMATION
-        ==================================================== */}
-
+        {/* ACCOUNT INFORMATION */}
         <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm">
 
           <h3 className="text-lg font-semibold text-slate-900">
@@ -372,7 +383,6 @@ export default function DashboardPage() {
         </div>
 
       </section>
-
     </main>
   );
 }
