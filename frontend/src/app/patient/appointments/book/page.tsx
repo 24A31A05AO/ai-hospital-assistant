@@ -11,6 +11,21 @@ import {
   type Consultation,
 } from "@/lib/api";
 
+const DEPARTMENTS = [
+  "General Medicine",
+  "Cardiology",
+  "Dermatology",
+  "ENT",
+  "Gastroenterology",
+  "Neurology",
+  "Orthopedics",
+  "Pediatrics",
+  "Psychiatry",
+  "Pulmonology",
+  "Radiology",
+  "Urology",
+];
+
 export default function BookAppointmentPage() {
   const router = useRouter();
 
@@ -20,36 +35,20 @@ export default function BookAppointmentPage() {
   >([]);
 
   const [hospitalId, setHospitalId] = useState("");
+  const [consultationId, setConsultationId] = useState("");
   const [doctorId, setDoctorId] = useState("");
-  const [consultationId, setConsultationId] =
-    useState("");
+  const [department, setDepartment] = useState("");
 
-  const [department, setDepartment] =
-    useState("");
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [appointmentTime, setAppointmentTime] = useState("");
 
-  const [appointmentDate, setAppointmentDate] =
-    useState("");
+  const [priority, setPriority] = useState("Normal");
 
-  const [appointmentTime, setAppointmentTime] =
-    useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [priority, setPriority] =
-    useState("Normal");
-
-  const [notes, setNotes] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [submitting, setSubmitting] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  const [success, setSuccess] =
-    useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // ==========================================================
   // LOAD DATA
@@ -57,11 +56,8 @@ export default function BookAppointmentPage() {
 
   useEffect(() => {
     async function loadData() {
-      const token =
-        localStorage.getItem("access_token");
-
-      const role =
-        localStorage.getItem("user_role");
+      const token = localStorage.getItem("access_token");
+      const role = localStorage.getItem("user_role");
 
       if (!token || role !== "patient") {
         router.replace("/login");
@@ -69,25 +65,24 @@ export default function BookAppointmentPage() {
       }
 
       try {
-        const [
-          hospitalData,
-          consultationData,
-        ] = await Promise.all([
-          getHospitals(),
-          getPatientConsultations(),
-        ]);
+        const [hospitalData, consultationData] =
+          await Promise.all([
+            getHospitals(),
+            getPatientConsultations(),
+          ]);
 
         setHospitals(hospitalData);
-        setConsultations(
-          consultationData
-        );
+        setConsultations(consultationData);
       } catch (err) {
-        console.error(err);
+        console.error(
+          "Failed to load appointment data:",
+          err
+        );
 
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to load appointment data."
+            : "Unable to load appointment information."
         );
       } finally {
         setLoading(false);
@@ -98,34 +93,52 @@ export default function BookAppointmentPage() {
   }, [router]);
 
   // ==========================================================
-  // WHEN CONSULTATION CHANGES
+  // CONSULTATION CHANGE
   // ==========================================================
 
-  function handleConsultationChange(
-    value: string
-  ) {
+  function handleConsultationChange(value: string) {
     setConsultationId(value);
+    setDoctorId("");
 
-    const selected =
-      consultations.find(
-        (item) =>
-          String(item.id) === value
-      );
-
-    if (!selected) {
+    if (!value) {
       return;
     }
 
-    if (selected.doctor_id) {
+    const selectedConsultation =
+      consultations.find(
+        (consultation) =>
+          String(consultation.id) === value
+      );
+
+    if (!selectedConsultation) {
+      return;
+    }
+
+    // Automatically get doctor from consultation
+    if (
+      selectedConsultation.doctor_id !== null &&
+      selectedConsultation.doctor_id !== undefined
+    ) {
       setDoctorId(
-        String(selected.doctor_id)
+        String(selectedConsultation.doctor_id)
       );
     }
 
-    if (selected.department) {
-      setDepartment(
-        selected.department
-      );
+    // Automatically select consultation department
+    if (selectedConsultation.department) {
+      const consultationDepartment =
+        selectedConsultation.department.trim();
+
+      const matchingDepartment =
+        DEPARTMENTS.find(
+          (item) =>
+            item.toLowerCase() ===
+            consultationDepartment.toLowerCase()
+        );
+
+      if (matchingDepartment) {
+        setDepartment(matchingDepartment);
+      }
     }
   }
 
@@ -141,24 +154,29 @@ export default function BookAppointmentPage() {
     setError("");
     setSuccess("");
 
+    // --------------------------------------------------------
+    // VALIDATION
+    // --------------------------------------------------------
+
     if (!hospitalId) {
-      setError(
-        "Please select a hospital."
-      );
+      setError("Please select a hospital.");
+      return;
+    }
+
+    if (!consultationId) {
+      setError("Please select a consultation.");
       return;
     }
 
     if (!doctorId) {
       setError(
-        "Please select a doctor."
+        "The selected consultation does not have an assigned doctor."
       );
       return;
     }
 
-    if (!department.trim()) {
-      setError(
-        "Please enter the department."
-      );
+    if (!department) {
+      setError("Please select a department.");
       return;
     }
 
@@ -178,32 +196,27 @@ export default function BookAppointmentPage() {
 
     setSubmitting(true);
 
+    // --------------------------------------------------------
+    // CREATE APPOINTMENT
+    // --------------------------------------------------------
+
     try {
       await createAppointment({
-        hospital_id:
-          Number(hospitalId),
+        hospital_id: Number(hospitalId),
 
-        doctor_id:
-          Number(doctorId),
+        doctor_id: Number(doctorId),
 
-        consultation_id:
-          consultationId
-            ? Number(consultationId)
-            : null,
+        consultation_id: Number(consultationId),
 
-        department:
-          department.trim(),
+        department: department,
 
-        appointment_date:
-          appointmentDate,
+        appointment_date: appointmentDate,
 
-        appointment_time:
-          appointmentTime,
+        appointment_time: appointmentTime,
 
-        priority,
+        priority: priority,
 
-        notes:
-          notes.trim() || null,
+        notes: null,
       });
 
       setSuccess(
@@ -211,12 +224,13 @@ export default function BookAppointmentPage() {
       );
 
       setTimeout(() => {
-        router.push(
-          "/patient/appointments"
-        );
+        router.push("/patient/appointments");
       }, 1000);
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Appointment booking error:",
+        err
+      );
 
       setError(
         err instanceof Error
@@ -236,14 +250,27 @@ export default function BookAppointmentPage() {
     return (
       <main
         style={{
-          padding: "40px",
+          minHeight: "100vh",
+          background: "#f8fafc",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
         }}
       >
-        <h1>Book Appointment</h1>
-
-        <p>
-          Loading appointment information...
-        </p>
+        <div
+          style={{
+            background: "white",
+            padding: "30px",
+            borderRadius: "16px",
+            boxShadow:
+              "0 4px 20px rgba(0,0,0,0.06)",
+          }}
+        >
+          <p style={{ color: "#475569" }}>
+            Loading appointment information...
+          </p>
+        </div>
       </main>
     );
   }
@@ -266,19 +293,15 @@ export default function BookAppointmentPage() {
           margin: "0 auto",
         }}
       >
-        {/* HEADER */}
+        {/* ====================================================
+            HEADER
+        ==================================================== */}
 
-        <div
-          style={{
-            marginBottom: "30px",
-          }}
-        >
+        <div style={{ marginBottom: "30px" }}>
           <button
             type="button"
             onClick={() =>
-              router.push(
-                "/patient/dashboard"
-              )
+              router.push("/patient/dashboard")
             }
             style={{
               marginBottom: "20px",
@@ -286,7 +309,9 @@ export default function BookAppointmentPage() {
               borderRadius: "8px",
               border: "1px solid #cbd5e1",
               background: "white",
+              color: "#0f172a",
               cursor: "pointer",
+              fontWeight: 500,
             }}
           >
             ← Dashboard
@@ -303,17 +328,15 @@ export default function BookAppointmentPage() {
             Book Appointment
           </h1>
 
-          <p
-            style={{
-              color: "#64748b",
-            }}
-          >
-            Schedule an appointment with
-            your doctor.
+          <p style={{ color: "#64748b" }}>
+            Select a hospital, consultation,
+            department and preferred appointment time.
           </p>
         </div>
 
-        {/* ERROR */}
+        {/* ====================================================
+            ERROR
+        ==================================================== */}
 
         {error && (
           <div
@@ -330,7 +353,9 @@ export default function BookAppointmentPage() {
           </div>
         )}
 
-        {/* SUCCESS */}
+        {/* ====================================================
+            SUCCESS
+        ==================================================== */}
 
         {success && (
           <div
@@ -347,7 +372,9 @@ export default function BookAppointmentPage() {
           </div>
         )}
 
-        {/* FORM */}
+        {/* ====================================================
+            FORM
+        ==================================================== */}
 
         <form
           onSubmit={handleSubmit}
@@ -359,18 +386,17 @@ export default function BookAppointmentPage() {
               "0 4px 20px rgba(0,0,0,0.06)",
           }}
         >
-          {/* HOSPITAL */}
+          {/* ==================================================
+              HOSPITAL
+          ================================================== */}
 
-          <div
-            style={{
-              marginBottom: "20px",
-            }}
-          >
+          <div style={{ marginBottom: "20px" }}>
             <label
               style={{
                 display: "block",
                 fontWeight: 600,
                 marginBottom: "8px",
+                color: "#0f172a",
               }}
             >
               Hospital
@@ -379,9 +405,7 @@ export default function BookAppointmentPage() {
             <select
               value={hospitalId}
               onChange={(event) =>
-                setHospitalId(
-                  event.target.value
-                )
+                setHospitalId(event.target.value)
               }
               style={{
                 width: "100%",
@@ -389,37 +413,36 @@ export default function BookAppointmentPage() {
                 borderRadius: "8px",
                 border:
                   "1px solid #cbd5e1",
+                background: "white",
+                color: "#0f172a",
               }}
             >
               <option value="">
                 Select hospital
               </option>
 
-              {hospitals.map(
-                (hospital) => (
-                  <option
-                    key={hospital.id}
-                    value={hospital.id}
-                  >
-                    {hospital.name}
-                  </option>
-                )
-              )}
+              {hospitals.map((hospital) => (
+                <option
+                  key={hospital.id}
+                  value={hospital.id}
+                >
+                  {hospital.name}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* CONSULTATION */}
+          {/* ==================================================
+              CONSULTATION
+          ================================================== */}
 
-          <div
-            style={{
-              marginBottom: "20px",
-            }}
-          >
+          <div style={{ marginBottom: "20px" }}>
             <label
               style={{
                 display: "block",
                 fontWeight: 600,
                 marginBottom: "8px",
+                color: "#0f172a",
               }}
             >
               Consultation
@@ -438,6 +461,8 @@ export default function BookAppointmentPage() {
                 borderRadius: "8px",
                 border:
                   "1px solid #cbd5e1",
+                background: "white",
+                color: "#0f172a",
               }}
             >
               <option value="">
@@ -452,6 +477,7 @@ export default function BookAppointmentPage() {
                   >
                     Consultation #
                     {consultation.id}
+
                     {consultation.chief_complaint
                       ? ` - ${consultation.chief_complaint}`
                       : ""}
@@ -459,42 +485,6 @@ export default function BookAppointmentPage() {
                 )
               )}
             </select>
-          </div>
-
-          {/* DOCTOR ID */}
-
-          <div
-            style={{
-              marginBottom: "20px",
-            }}
-          >
-            <label
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "8px",
-              }}
-            >
-              Doctor ID
-            </label>
-
-            <input
-              type="number"
-              value={doctorId}
-              onChange={(event) =>
-                setDoctorId(
-                  event.target.value
-                )
-              }
-              placeholder="Enter doctor ID"
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "8px",
-                border:
-                  "1px solid #cbd5e1",
-              }}
-            />
 
             <p
               style={{
@@ -503,60 +493,72 @@ export default function BookAppointmentPage() {
                 color: "#64748b",
               }}
             >
-              Selecting a consultation
-              automatically fills its
-              assigned doctor.
+              Your assigned doctor will be selected
+              automatically.
             </p>
           </div>
 
-          {/* DEPARTMENT */}
+          {/* ==================================================
+              DEPARTMENT
+          ================================================== */}
 
-          <div
-            style={{
-              marginBottom: "20px",
-            }}
-          >
+          <div style={{ marginBottom: "20px" }}>
             <label
               style={{
                 display: "block",
                 fontWeight: 600,
                 marginBottom: "8px",
+                color: "#0f172a",
               }}
             >
               Department
             </label>
 
-            <input
-              type="text"
+            <select
               value={department}
               onChange={(event) =>
                 setDepartment(
                   event.target.value
                 )
               }
-              placeholder="Example: General Medicine"
               style={{
                 width: "100%",
                 padding: "12px",
                 borderRadius: "8px",
                 border:
                   "1px solid #cbd5e1",
+                background: "white",
+                color: "#0f172a",
               }}
-            />
+            >
+              <option value="">
+                Select department
+              </option>
+
+              {DEPARTMENTS.map(
+                (departmentName) => (
+                  <option
+                    key={departmentName}
+                    value={departmentName}
+                  >
+                    {departmentName}
+                  </option>
+                )
+              )}
+            </select>
           </div>
 
-          {/* DATE */}
+          {/* ==================================================
+              DATE
+          ================================================== */}
 
-          <div
-            style={{
-              marginBottom: "20px",
-            }}
-          >
+          <div style={{ marginBottom: "20px" }}>
             <label
               style={{
                 display: "block",
                 fontWeight: 600,
                 marginBottom: "8px",
+                color: "#0f172a",
               }}
             >
               Appointment Date
@@ -581,22 +583,23 @@ export default function BookAppointmentPage() {
                 borderRadius: "8px",
                 border:
                   "1px solid #cbd5e1",
+                background: "white",
+                color: "#0f172a",
               }}
             />
           </div>
 
-          {/* TIME */}
+          {/* ==================================================
+              TIME
+          ================================================== */}
 
-          <div
-            style={{
-              marginBottom: "20px",
-            }}
-          >
+          <div style={{ marginBottom: "20px" }}>
             <label
               style={{
                 display: "block",
                 fontWeight: 600,
                 marginBottom: "8px",
+                color: "#0f172a",
               }}
             >
               Appointment Time
@@ -616,22 +619,23 @@ export default function BookAppointmentPage() {
                 borderRadius: "8px",
                 border:
                   "1px solid #cbd5e1",
+                background: "white",
+                color: "#0f172a",
               }}
             />
           </div>
 
-          {/* PRIORITY */}
+          {/* ==================================================
+              PRIORITY
+          ================================================== */}
 
-          <div
-            style={{
-              marginBottom: "20px",
-            }}
-          >
+          <div style={{ marginBottom: "30px" }}>
             <label
               style={{
                 display: "block",
                 fontWeight: 600,
                 marginBottom: "8px",
+                color: "#0f172a",
               }}
             >
               Priority
@@ -650,6 +654,8 @@ export default function BookAppointmentPage() {
                 borderRadius: "8px",
                 border:
                   "1px solid #cbd5e1",
+                background: "white",
+                color: "#0f172a",
               }}
             >
               <option value="Normal">
@@ -662,44 +668,9 @@ export default function BookAppointmentPage() {
             </select>
           </div>
 
-          {/* NOTES */}
-
-          <div
-            style={{
-              marginBottom: "25px",
-            }}
-          >
-            <label
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "8px",
-              }}
-            >
-              Notes
-            </label>
-
-            <textarea
-              value={notes}
-              onChange={(event) =>
-                setNotes(
-                  event.target.value
-                )
-              }
-              placeholder="Additional information for the doctor..."
-              rows={4}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "8px",
-                border:
-                  "1px solid #cbd5e1",
-                resize: "vertical",
-              }}
-            />
-          </div>
-
-          {/* SUBMIT */}
+          {/* ==================================================
+              SUBMIT
+          ================================================== */}
 
           <button
             type="submit"
@@ -709,10 +680,9 @@ export default function BookAppointmentPage() {
               padding: "14px",
               borderRadius: "10px",
               border: "none",
-              background:
-                submitting
-                  ? "#94a3b8"
-                  : "#0f172a",
+              background: submitting
+                ? "#94a3b8"
+                : "#0f172a",
               color: "white",
               fontSize: "16px",
               fontWeight: 600,
