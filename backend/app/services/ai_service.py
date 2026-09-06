@@ -21,9 +21,10 @@ client = genai.Client(
 
 class AIConsultationResult(BaseModel):
     """
-    Strict schema for the AI preliminary assessment.
+    AI assistance for organizing a patient's reported information.
 
-    This is NOT a medical diagnosis.
+    This system does NOT diagnose the patient and does NOT
+    generate possible medical conditions.
     """
 
     summary: str = Field(
@@ -42,16 +43,6 @@ class AIConsultationResult(BaseModel):
         "High",
         "Emergency",
     ]
-
-    possible_conditions: list[str] = Field(
-        default_factory=list,
-        max_length=5,
-    )
-
-    recommended_tests: list[str] = Field(
-        default_factory=list,
-        max_length=5,
-    )
 
     red_flags: list[str] = Field(
         default_factory=list,
@@ -87,11 +78,11 @@ def contains_emergency_indicator(
     text: str,
 ) -> bool:
     """
-    Basic deterministic safety layer.
+    Detect obvious high-risk phrases.
 
     This does NOT diagnose an emergency.
-    It only detects obvious high-risk phrases and
-    prevents the AI from returning a lower priority.
+    It only ensures that obvious emergency indicators
+    are not assigned a lower priority by the AI.
     """
 
     normalized = text.lower()
@@ -114,12 +105,16 @@ def analyze_consultation(
     allergies: str | None = None,
 ):
     """
-    Perform preliminary AI triage.
+    Organize patient-provided information for healthcare review.
 
     IMPORTANT:
-    This function provides decision-support information only.
-    It does NOT provide a definitive diagnosis or replace
-    assessment by a qualified healthcare professional.
+    - This is NOT a medical diagnosis.
+    - No possible conditions are generated.
+    - No medical tests are recommended.
+    - Patient-reported information is preserved.
+    - AI only creates an organizational summary,
+      suggests a hospital department, and assigns preliminary
+      priority.
     """
 
     patient_information = f"""
@@ -142,37 +137,63 @@ Allergies:
     prompt = f"""
 You are an AI hospital patient-assistant system.
 
-You provide PRELIMINARY TRIAGE SUPPORT ONLY.
+Your role is ONLY to organize information provided by the patient
+for review by a qualified healthcare professional.
 
 You are NOT a doctor.
-You must NOT provide a definitive diagnosis.
-Your output must never be presented as a confirmed medical diagnosis.
+
+DO NOT diagnose the patient.
+
+DO NOT guess or invent medical conditions.
+
+DO NOT generate possible diseases or conditions.
+
+DO NOT recommend medical tests.
+
+DO NOT prescribe medication.
+
+DO NOT tell the patient that they are medically cleared.
+
+DO NOT change, exaggerate, or invent the patient's symptoms.
 
 Patient information:
 
 {patient_information}
 
-Your task:
+Your tasks:
 
-1. Summarize the patient's reported information.
-2. Suggest the most appropriate hospital department.
+1. Create a concise factual summary of what the patient reported.
+
+2. Select the most appropriate hospital department based ONLY
+   on the patient's reported complaint and symptoms.
+
 3. Assign a preliminary priority:
    Low, Medium, High, or Emergency.
-4. List possible conditions only as possibilities.
-5. Suggest potentially relevant investigations.
-6. Identify important red flags.
 
-Safety rules:
+4. Identify only obvious safety warning signs that are directly
+   present in the patient's reported information.
 
-- Never claim that a condition is definitely present.
-- Never tell the patient that they are medically cleared.
-- Never replace emergency medical care.
-- If information suggests a possible emergency, use Emergency.
-- Keep the response concise.
-- Do not provide medication dosage instructions.
-- Do not recommend stopping prescribed medication.
-- Do not invent patient information.
+Important:
+
+- Preserve the meaning of the patient's actual complaint.
+- Do not turn symptoms into a diagnosis.
+- Do not mention diseases as possibilities.
+- Do not suggest investigations or tests.
+- Do not provide treatment instructions.
+- Do not invent information.
+- The doctor must be able to review the patient's original
+  complaint and symptoms separately from this AI summary.
+
+The summary should be factual and concise.
+
+Patient information:
+
+{patient_information}
 """
+
+    # ========================================================
+    # CALL GEMINI
+    # ========================================================
 
     try:
         response = client.models.generate_content(
@@ -185,8 +206,7 @@ Safety rules:
         )
 
     except Exception as exc:
-        # Do not expose the provider's internal error
-        # to the patient.
+        # Do not expose provider errors to the patient.
         raise RuntimeError(
             "AI assessment service is temporarily unavailable."
         ) from exc

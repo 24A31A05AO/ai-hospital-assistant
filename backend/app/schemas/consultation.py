@@ -14,6 +14,7 @@ class PatientInfo(BaseModel):
     phone: str
     village: str | None = None
     role: str
+    is_active: bool
 
     model_config = {
         "from_attributes": True
@@ -43,6 +44,14 @@ class DoctorInfo(BaseModel):
 # ============================================================
 
 class ConsultationCreate(BaseModel):
+    """
+    Information directly provided by the patient.
+
+    These fields represent the patient's actual problem
+    and must be preserved without being converted into
+    an AI diagnosis.
+    """
+
     chief_complaint: str
     symptoms: str
 
@@ -77,42 +86,68 @@ class ConsultationResponse(BaseModel):
     doctor: DoctorInfo | None = None
 
     # --------------------------------------------------------
-    # Patient information
+    # ORIGINAL PATIENT INFORMATION
     # --------------------------------------------------------
 
+    # These fields are the patient's actual reported information.
+
     chief_complaint: str
+
     symptoms: str | None = None
 
     medical_history: str | None = None
+
     medications: str | None = None
+
     allergies: str | None = None
 
     # --------------------------------------------------------
-    # AI analysis
+    # AI ASSISTANCE
     # --------------------------------------------------------
 
+    # Factual organization of patient information only.
     ai_summary: str | None = None
 
-    possible_conditions: list[str]
-    recommended_tests: list[str]
-    red_flags: list[str]
+    # --------------------------------------------------------
+    # DEPRECATED AI FIELDS
+    # --------------------------------------------------------
+    #
+    # These remain temporarily for compatibility with the
+    # existing database and older frontend code.
+    #
+    # They are intentionally always returned as empty lists.
+    #
+    # No possible conditions or recommended tests are generated.
+    #
+
+    possible_conditions: list[str] = []
+
+    recommended_tests: list[str] = []
 
     # --------------------------------------------------------
-    # Classification
+    # SAFETY
+    # --------------------------------------------------------
+
+    red_flags: list[str] = []
+
+    # --------------------------------------------------------
+    # HOSPITAL CLASSIFICATION
     # --------------------------------------------------------
 
     department: str | None = None
+
     priority: str
+
     status: str
 
     # --------------------------------------------------------
-    # Doctor review
+    # DOCTOR REVIEW
     # --------------------------------------------------------
 
     doctor_notes: str | None = None
 
     # --------------------------------------------------------
-    # Date
+    # DATE
     # --------------------------------------------------------
 
     created_at: datetime

@@ -34,22 +34,142 @@ def create_appointment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # --------------------------------------------------------
+    # PATIENT CHECK
+    # --------------------------------------------------------
+
     if current_user.role != "patient":
         raise HTTPException(
             status_code=403,
             detail="Only patients can create appointments",
         )
 
+    # --------------------------------------------------------
+    # CHECK DOCTOR
+    # --------------------------------------------------------
+
+    doctor = (
+        db.query(User)
+        .filter(
+            User.id == appointment_data.doctor_id
+        )
+        .first()
+    )
+
+    if doctor is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Doctor not found",
+        )
+
+    if doctor.role != "doctor":
+        raise HTTPException(
+            status_code=400,
+            detail="Selected user is not a doctor",
+        )
+
+    if not doctor.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="Doctor is currently unavailable",
+        )
+
+    # --------------------------------------------------------
+    # CHECK DOCTOR DOUBLE BOOKING
+    # --------------------------------------------------------
+
+    existing_doctor_appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.doctor_id
+            == appointment_data.doctor_id,
+
+            Appointment.appointment_date
+            == appointment_data.appointment_date,
+
+            Appointment.appointment_time
+            == appointment_data.appointment_time,
+
+            Appointment.status.in_(
+                [
+                    "booked",
+                    "confirmed",
+                    "in_progress",
+                ]
+            ),
+        )
+        .first()
+    )
+
+    if existing_doctor_appointment:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This doctor is not available at "
+                "the selected date and time. "
+                "Please choose another time slot."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # CHECK PATIENT DOUBLE BOOKING
+    # --------------------------------------------------------
+
+    existing_patient_appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.patient_id
+            == current_user.id,
+
+            Appointment.appointment_date
+            == appointment_data.appointment_date,
+
+            Appointment.appointment_time
+            == appointment_data.appointment_time,
+
+            Appointment.status.in_(
+                [
+                    "booked",
+                    "confirmed",
+                    "in_progress",
+                ]
+            ),
+        )
+        .first()
+    )
+
+    if existing_patient_appointment:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "You already have an appointment "
+                "at this date and time."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # CREATE APPOINTMENT
+    # --------------------------------------------------------
+
     appointment = Appointment(
         patient_id=current_user.id,
+
         hospital_id=appointment_data.hospital_id,
+
         doctor_id=appointment_data.doctor_id,
+
         consultation_id=appointment_data.consultation_id,
+
         department=appointment_data.department,
+
         appointment_date=appointment_data.appointment_date,
+
         appointment_time=appointment_data.appointment_time,
+
         priority=appointment_data.priority,
+
         status="booked",
+
         notes=appointment_data.notes,
     )
 
@@ -82,7 +202,8 @@ def get_my_appointments(
     return (
         db.query(Appointment)
         .filter(
-            Appointment.patient_id == current_user.id
+            Appointment.patient_id
+            == current_user.id
         )
         .order_by(
             Appointment.appointment_date.asc(),

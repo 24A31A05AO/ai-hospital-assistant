@@ -4,6 +4,10 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_user
 from app.db.session import get_db
 
+from datetime import date, time
+
+from app.models.doctor_availability import DoctorAvailability
+
 from app.models.user import User
 from app.models.consultation import Consultation
 from app.models.appointment import Appointment
@@ -367,4 +371,227 @@ def get_doctor_appointment(
             if patient
             else None
         ),
+    }
+
+# ============================================================
+# GET MY AVAILABILITY / UNAVAILABLE SLOTS
+# ============================================================
+
+@router.get("/availability")
+def get_my_availability(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_doctor(current_user)
+
+    records = (
+        db.query(DoctorAvailability)
+        .filter(
+            DoctorAvailability.doctor_id == current_user.id
+        )
+        .order_by(
+            DoctorAvailability.unavailable_date.asc(),
+            DoctorAvailability.start_time.asc(),
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": record.id,
+            "doctor_id": record.doctor_id,
+            "unavailable_date": (
+                record.unavailable_date.isoformat()
+                if record.unavailable_date
+                else None
+            ),
+            "start_time": (
+                record.start_time.isoformat()
+                if record.start_time
+                else None
+            ),
+            "end_time": (
+                record.end_time.isoformat()
+                if record.end_time
+                else None
+            ),
+            "is_unavailable": record.is_unavailable,
+            "reason": record.reason,
+            "created_at": (
+                record.created_at.isoformat()
+                if record.created_at
+                else None
+            ),
+        }
+        for record in records
+    ]
+
+
+# ============================================================
+# CREATE UNAVAILABLE DATE / TIME
+# ============================================================
+
+@router.post("/availability")
+def create_availability(
+    unavailable_date: date,
+    start_time: time | None = None,
+    end_time: time | None = None,
+    reason: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_doctor(current_user)
+
+    # --------------------------------------------------------
+    # TIME VALIDATION
+    # --------------------------------------------------------
+
+    if (start_time is None) != (end_time is None):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Both start_time and end_time "
+                "must be provided for a time range."
+            ),
+        )
+
+    if (
+        start_time is not None
+        and end_time is not None
+        and start_time >= end_time
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="End time must be later than start time.",
+        )
+
+    # --------------------------------------------------------
+    # CHECK OVERLAPPING UNAVAILABLE PERIOD
+    # --------------------------------------------------------
+
+    existing_records = (
+        db.query(DoctorAvailability)
+        .filter(
+            DoctorAvailability.doctor_id == current_user.id,
+            DoctorAvailability.unavailable_date
+            == unavailable_date,
+            DoctorAvailability.is_unavailable.is_(True),
+        )
+        .all()
+    )
+
+    for existing in existing_records:
+
+        # Existing whole-day block
+        if (
+            existing.start_time is None
+            and existing.end_time is None
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "You are already unavailable "
+                    "for this date."
+                ),
+            )
+
+        # New whole-day block conflicts with any period
+        if (
+            start_time is None
+            and end_time is None
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "An unavailable time already exists "
+                    "for this date."
+                ),
+            )
+
+        # Time overlap
+        if (
+            existing.start_time is not None
+            and existing.end_time is not None
+            and start_time < existing.end_time
+            and end_time > existing.start_time
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This unavailable time overlaps "
+                    "with an existing unavailable period."
+                ),
+            )
+
+    # --------------------------------------------------------
+    # CREATE
+    # --------------------------------------------------------
+
+    record = DoctorAvailability(
+        doctor_id=current_user.id,
+        unavailable_date=unavailable_date,
+        start_time=start_time,
+        end_time=end_time,
+        is_unavailable=True,
+        reason=reason.strip() if reason else None,
+    )
+
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
+    return {
+        "message": "Doctor availability updated successfully.",
+        "availability": {
+            "id": record.id,
+            "doctor_id": record.doctor_id,
+            "unavailable_date": record.unavailable_date.isoformat(),
+            "start_time": (
+                record.start_time.isoformat()
+                if record.start_time
+                else None
+            ),
+            "end_time": (
+                record.end_time.isoformat()
+                if record.end_time
+                else None
+            ),
+            "is_unavailable": record.is_unavailable,
+            "reason": record.reason,
+        },
+    }
+
+
+# ============================================================
+# DELETE UNAVAILABLE DATE / TIME
+# ============================================================
+
+@router.delete("/availability/{availability_id}")
+def delete_availability(
+    availability_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_doctor(current_user)
+
+    record = (
+        db.query(DoctorAvailability)
+        .filter(
+            DoctorAvailability.id == availability_id,
+            DoctorAvailability.doctor_id == current_user.id,
+        )
+        .first()
+    )
+
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Availability record not found.",
+        )
+
+    db.delete(record)
+    db.commit()
+
+    return {
+        "message": "Unavailable period removed successfully."
     }

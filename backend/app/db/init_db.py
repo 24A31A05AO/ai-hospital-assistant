@@ -5,6 +5,7 @@ from app.models.user import User
 from app.models.consultation import Consultation
 from app.models.hospital import Hospital
 from app.models.appointment import Appointment
+from app.models.doctor_availability import DoctorAvailability
 
 
 def create_tables():
@@ -13,4 +14,4 @@ def create_tables():
 
 if __name__ == "__main__":
     create_tables()
-    print("✅ Database tables created successfully!")
+    print("Database tables created successfully!")
