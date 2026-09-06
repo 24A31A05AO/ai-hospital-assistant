@@ -962,3 +962,46 @@ export async function getDoctorAppointment(
     `/doctor/appointments/${appointmentId}`
   );
 }
+
+// ============================================================
+// PATIENT APPOINTMENTS
+// ============================================================
+
+export type AppointmentCreate = {
+  hospital_id: number;
+  doctor_id: number;
+  consultation_id?: number | null;
+  department: string;
+  appointment_date: string;
+  appointment_time: string;
+  priority: string;
+  notes?: string | null;
+};
+
+// ============================================================
+// CREATE PATIENT APPOINTMENT
+// ============================================================
+
+export async function createAppointment(
+  appointment: AppointmentCreate
+): Promise<Appointment> {
+  return apiRequest<Appointment>(
+    "/appointments/",
+    {
+      method: "POST",
+      body: JSON.stringify(appointment),
+    }
+  );
+}
+
+// ============================================================
+// GET MY APPOINTMENTS
+// ============================================================
+
+export async function getMyAppointments(): Promise<
+  Appointment[]
+> {
+  return apiRequest<Appointment[]>(
+    "/appointments/my"
+  );
+}
