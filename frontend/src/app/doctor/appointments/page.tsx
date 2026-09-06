@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { apiRequest } from "@/lib/api";
 
 type Appointment = {
@@ -23,9 +24,8 @@ type Appointment = {
 export default function DoctorAppointmentsPage() {
   const router = useRouter();
 
-  const [appointments, setAppointments] = useState<
-    Appointment[]
-  >([]);
+  const [appointments, setAppointments] =
+    useState<Appointment[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,8 +51,6 @@ export default function DoctorAppointmentsPage() {
 
         setAppointments(data);
       } catch (err) {
-        console.error(err);
-
         setError(
           err instanceof Error
             ? err.message
@@ -70,24 +68,28 @@ export default function DoctorAppointmentsPage() {
     <main className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto max-w-6xl">
 
+        {/* HEADER */}
+
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">
               Doctor Appointments
             </h1>
 
-            <p className="mt-2 text-slate-600">
-              View appointments assigned to you.
+            <p className="mt-1 text-slate-600">
+              View your assigned patient appointments.
             </p>
           </div>
 
           <button
             onClick={() => router.push("/doctor")}
-            className="rounded-lg bg-slate-900 px-5 py-2.5 text-white hover:bg-slate-800"
+            className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
           >
             Back to Dashboard
           </button>
         </div>
+
+        {/* LOADING */}
 
         {loading && (
           <div className="rounded-xl bg-white p-8 text-center shadow">
@@ -96,6 +98,8 @@ export default function DoctorAppointmentsPage() {
             </p>
           </div>
         )}
+
+        {/* ERROR */}
 
         {!loading && error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-6">
@@ -108,6 +112,8 @@ export default function DoctorAppointmentsPage() {
             </p>
           </div>
         )}
+
+        {/* EMPTY */}
 
         {!loading &&
           !error &&
@@ -123,98 +129,100 @@ export default function DoctorAppointmentsPage() {
             </div>
           )}
 
+        {/* APPOINTMENTS */}
+
         {!loading &&
           !error &&
           appointments.length > 0 && (
             <div className="space-y-4">
-              {appointments.map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              {appointments.map(
+                (appointment) => (
+                  <div
+                    key={appointment.id}
+                    className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900">
-                        Appointment #{appointment.id}
-                      </h2>
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">
+                          Appointment #
+                          {appointment.id}
+                        </h2>
 
-                      <p className="mt-2 text-sm text-slate-600">
-                        Patient ID: {appointment.patient_id}
-                      </p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Patient ID:{" "}
+                          {appointment.patient_id}
+                        </p>
 
-                      <p className="text-sm text-slate-600">
-                        Department: {appointment.department}
-                      </p>
+                        <p className="text-sm text-slate-600">
+                          Department:{" "}
+                          {appointment.department}
+                        </p>
+                      </div>
+
+                      <div className="text-left md:text-right">
+                        <p className="font-semibold text-slate-900">
+                          {
+                            appointment.appointment_date
+                          }
+                        </p>
+
+                        <p className="text-slate-600">
+                          {
+                            appointment.appointment_time
+                          }
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="text-left md:text-right">
-                      <p className="font-semibold text-slate-900">
-                        {appointment.appointment_date}
-                      </p>
+                    <div className="mt-5 grid gap-3 border-t border-slate-100 pt-5 sm:grid-cols-3">
 
-                      <p className="text-slate-600">
-                        {appointment.appointment_time}
-                      </p>
+                      <div>
+                        <p className="text-xs uppercase text-slate-400">
+                          Priority
+                        </p>
+
+                        <p className="font-medium text-slate-800">
+                          {appointment.priority}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs uppercase text-slate-400">
+                          Status
+                        </p>
+
+                        <p className="font-medium text-slate-800">
+                          {appointment.status}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs uppercase text-slate-400">
+                          Queue
+                        </p>
+
+                        <p className="font-medium text-slate-800">
+                          {appointment.queue_number ??
+                            "Not assigned"}
+                        </p>
+                      </div>
                     </div>
+
+                    {appointment.notes && (
+                      <div className="mt-4 rounded-lg bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase text-slate-400">
+                          Notes
+                        </p>
+
+                        <p className="mt-1 text-sm text-slate-700">
+                          {appointment.notes}
+                        </p>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-3">
-
-                    <div>
-                      <p className="text-xs uppercase text-slate-400">
-                        Priority
-                      </p>
-
-                      <p className="font-medium text-slate-800">
-                        {appointment.priority}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs uppercase text-slate-400">
-                        Status
-                      </p>
-
-                      <p className="font-medium text-slate-800">
-                        {appointment.status}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs uppercase text-slate-400">
-                        Queue
-                      </p>
-
-                      <p className="font-medium text-slate-800">
-                        {appointment.queue_number ??
-                          "Not assigned"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {appointment.consultation_id && (
-                    <div className="mt-4">
-                      <p className="text-sm text-slate-600">
-                        Consultation ID:{" "}
-                        {appointment.consultation_id}
-                      </p>
-                    </div>
-                  )}
-
-                  {appointment.notes && (
-                    <div className="mt-4 rounded-lg bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase text-slate-400">
-                        Notes
-                      </p>
-
-                      <p className="mt-1 text-sm text-slate-700">
-                        {appointment.notes}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              )}
             </div>
           )}
       </div>
