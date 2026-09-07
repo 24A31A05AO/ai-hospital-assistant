@@ -417,7 +417,9 @@ export default function PatientConsultationsPage() {
                     type="button"
                     onClick={() =>
                       openConsultation(consultation.id)
-                    }                  >
+                    }
+                    className="rounded-full bg-blue-600 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-blue-100 transition hover:bg-blue-700"
+                  >                
                   </button>
 
                 </div>

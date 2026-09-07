@@ -137,7 +137,6 @@ export default function DoctorConsultationsPage() {
       <div className="mx-auto max-w-6xl">
 
         {/* HEADER */}
-
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">
@@ -170,7 +169,6 @@ export default function DoctorConsultationsPage() {
         </div>
 
         {/* ERROR */}
-
         {error && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-5">
             <h2 className="font-bold text-red-700">
@@ -184,7 +182,6 @@ export default function DoctorConsultationsPage() {
         )}
 
         {/* EMPTY */}
-
         {!error && consultations.length === 0 && (
           <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
             <h2 className="text-xl font-bold text-slate-800">
@@ -198,7 +195,6 @@ export default function DoctorConsultationsPage() {
         )}
 
         {/* CONSULTATIONS */}
-
         {consultations.length > 0 && (
           <div className="space-y-6">
             {consultations.map((consultation) => (
@@ -207,7 +203,6 @@ export default function DoctorConsultationsPage() {
                 className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
               >
                 {/* TOP */}
-
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -243,7 +238,6 @@ export default function DoctorConsultationsPage() {
                 </div>
 
                 {/* PATIENT */}
-
                 <div className="mt-6 rounded-xl bg-slate-50 p-5">
                   <p className="text-sm font-semibold text-slate-500">
                     Patient
@@ -274,7 +268,6 @@ export default function DoctorConsultationsPage() {
                 </div>
 
                 {/* DETAILS */}
-
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
 
                   <div>
@@ -336,10 +329,10 @@ export default function DoctorConsultationsPage() {
                       {consultation.allergies || "—"}
                     </p>
                   </div>
+
                 </div>
 
                 {/* AI SUMMARY */}
-
                 {consultation.ai_summary && (
                   <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
                     <p className="font-bold text-blue-800">
@@ -353,7 +346,6 @@ export default function DoctorConsultationsPage() {
                 )}
 
                 {/* DOCTOR NOTES */}
-
                 {consultation.doctor_notes && (
                   <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-5">
                     <p className="font-bold text-green-800">
@@ -365,6 +357,24 @@ export default function DoctorConsultationsPage() {
                     </p>
                   </div>
                 )}
+
+                {/* BOTTOM ACTIONS */}
+                <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/doctor/consultations/${consultation.id}`
+                      )
+                    }
+                    className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    View Consultation
+                  </button>
+
+                </div>
+
               </article>
             ))}
           </div>
