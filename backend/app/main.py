@@ -64,16 +64,23 @@ def root():
 # CORS
 # ============================================================
 
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    "http://localhost:3000",
+)
+
 ALLOWED_ORIGINS = [
-    "https://ai-hospital-frontend.onrender.com",
+    FRONTEND_URL,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
 
+# Remove duplicates
+ALLOWED_ORIGINS = list(dict.fromkeys(ALLOWED_ORIGINS))
+
 print("========== CORS DEBUG ==========")
 print("ALLOWED_ORIGINS =", ALLOWED_ORIGINS)
 print("=================================")
-
 
 app.add_middleware(
     CORSMiddleware,

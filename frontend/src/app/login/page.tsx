@@ -206,7 +206,7 @@ export default function LoginPage() {
                     setError("");
                   }
                 }}
-                placeholder="doctor@test.com"
+                placeholder="Email"
                 autoComplete="email"
                 disabled={loading}
                 required

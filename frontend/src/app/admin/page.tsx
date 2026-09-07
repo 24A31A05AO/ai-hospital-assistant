@@ -56,6 +56,30 @@ type Stats = {
 
   assigned_consultations: number;
   unassigned_consultations: number;
+
+  today_consultations: number;
+  today_pending: number;
+  today_in_progress: number;
+  today_completed: number;
+};
+
+type Hospital = {
+  id: number;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  qr_code_id: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+type HospitalForm = {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  qr_code_id: string;
 };
 
 /* =========================================================
@@ -69,9 +93,7 @@ export default function AdminDashboard() {
      STATE
   ======================================================= */
 
-  const [stats, setStats] = useState<Stats | null>(
-    null
-  );
+  const [stats, setStats] = useState<Stats | null>(null);
 
   const [users, setUsers] = useState<User[]>([]);
 
@@ -80,17 +102,42 @@ export default function AdminDashboard() {
   const [consultations, setConsultations] =
     useState<Consultation[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
 
-  const [error, setError] =
-    useState("");
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState("");
 
   const [selectedDoctor, setSelectedDoctor] =
     useState<Record<number, number>>({});
 
   const [assigning, setAssigning] =
     useState<number | null>(null);
+
+  /* =======================================================
+     HOSPITAL STATE
+  ======================================================= */
+
+  const [showHospitalForm, setShowHospitalForm] =
+    useState(false);
+
+  const [hospitalForm, setHospitalForm] =
+    useState<HospitalForm>({
+      name: "",
+      address: "",
+      phone: "",
+      email: "",
+      qr_code_id: "",
+    });
+
+  const [addingHospital, setAddingHospital] =
+    useState(false);
+
+  const [hospitalError, setHospitalError] =
+    useState("");
+
+  const [hospitalLoading, setHospitalLoading] =
+    useState(true);
 
   /* =======================================================
      GET TOKEN
@@ -101,9 +148,7 @@ export default function AdminDashboard() {
       return null;
     }
 
-    return localStorage.getItem(
-      "access_token"
-    );
+    return localStorage.getItem("access_token");
   };
 
   /* =======================================================
@@ -119,56 +164,46 @@ export default function AdminDashboard() {
     if (!token) {
       router.push("/login");
 
-      throw new Error(
-        "Authentication required"
-      );
+      throw new Error("Authentication required");
     }
 
     const response = await fetch(
-      `${API_BASE_URL}${endpoint}`, 
+      `${API_BASE_URL}${endpoint}`,
       {
         ...options,
 
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
 
-          Accept:
-            "application/json",
+          Accept: "application/json",
 
-          Authorization:
-            `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
 
           ...(options.headers || {}),
         },
       }
     );
 
-    /* -----------------------------------------------
+    /* =====================================================
        UNAUTHORIZED
-    ------------------------------------------------ */
+    ===================================================== */
 
     if (response.status === 401) {
-      localStorage.removeItem(
-        "access_token"
-      );
+      localStorage.removeItem("access_token");
 
       router.push("/login");
 
-      throw new Error(
-        "Session expired"
-      );
+      throw new Error("Session expired");
     }
 
-    /* -----------------------------------------------
+    /* =====================================================
        FORBIDDEN
-    ------------------------------------------------ */
+    ===================================================== */
 
     if (response.status === 403) {
-      const data =
-        await response
-          .json()
-          .catch(() => null);
+      const data = await response
+        .json()
+        .catch(() => null);
 
       throw new Error(
         data?.detail ||
@@ -176,15 +211,14 @@ export default function AdminDashboard() {
       );
     }
 
-    /* -----------------------------------------------
+    /* =====================================================
        OTHER ERRORS
-    ------------------------------------------------ */
+    ===================================================== */
 
     if (!response.ok) {
-      const data =
-        await response
-          .json()
-          .catch(() => null);
+      const data = await response
+        .json()
+        .catch(() => null);
 
       throw new Error(
         data?.detail ||
@@ -192,7 +226,45 @@ export default function AdminDashboard() {
       );
     }
 
+    /*
+     * Some DELETE endpoints may return 204 No Content.
+     */
+    if (response.status === 204) {
+      return null;
+    }
+
     return response.json();
+  };
+
+  /* =======================================================
+     LOAD HOSPITALS
+  ======================================================= */
+
+  const loadHospitals = async () => {
+    try {
+      setHospitalLoading(true);
+
+      const data = await api("/hospitals/");
+
+      setHospitals(
+        Array.isArray(data)
+          ? data
+          : []
+      );
+    } catch (err) {
+      console.error(
+        "Failed to load hospitals:",
+        err
+      );
+
+      setHospitalError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load hospitals"
+      );
+    } finally {
+      setHospitalLoading(false);
+    }
   };
 
   /* =======================================================
@@ -218,14 +290,31 @@ export default function AdminDashboard() {
 
       setStats(statsData);
 
-      setUsers(usersData);
+      setUsers(
+        Array.isArray(usersData)
+          ? usersData
+          : []
+      );
 
-      setDoctors(doctorsData);
+      setDoctors(
+        Array.isArray(doctorsData)
+          ? doctorsData
+          : []
+      );
 
       setConsultations(
-        consultationsData
+        Array.isArray(
+          consultationsData
+        )
+          ? consultationsData
+          : []
       );
     } catch (err) {
+      console.error(
+        "Failed to load admin dashboard:",
+        err
+      );
+
       setError(
         err instanceof Error
           ? err.message
@@ -242,7 +331,143 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadDashboard();
+    loadHospitals();
   }, []);
+
+  /* =======================================================
+     OPEN HOSPITAL FORM
+  ======================================================= */
+
+  const openHospitalForm = () => {
+    setHospitalError("");
+
+    setHospitalForm({
+      name: "",
+      address: "",
+      phone: "",
+      email: "",
+      qr_code_id: "",
+    });
+
+    setShowHospitalForm(true);
+  };
+
+  /* =======================================================
+     CLOSE HOSPITAL FORM
+  ======================================================= */
+
+  const closeHospitalForm = () => {
+    if (addingHospital) {
+      return;
+    }
+
+    setShowHospitalForm(false);
+
+    setHospitalError("");
+
+    setHospitalForm({
+      name: "",
+      address: "",
+      phone: "",
+      email: "",
+      qr_code_id: "",
+    });
+  };
+
+  /* =======================================================
+     HOSPITAL INPUT
+  ======================================================= */
+
+  const updateHospitalField = (
+    field: keyof HospitalForm,
+    value: string
+  ) => {
+    setHospitalForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  /* =======================================================
+     ADD HOSPITAL
+  ======================================================= */
+
+  const addHospital = async () => {
+    setHospitalError("");
+
+    const name =
+      hospitalForm.name.trim();
+
+    const qrCodeId =
+      hospitalForm.qr_code_id.trim();
+
+    if (!name) {
+      setHospitalError(
+        "Hospital name is required."
+      );
+
+      return;
+    }
+
+    if (!qrCodeId) {
+      setHospitalError(
+        "QR Code ID is required."
+      );
+
+      return;
+    }
+
+    try {
+      setAddingHospital(true);
+
+      await api("/hospitals/", {
+        method: "POST",
+
+        body: JSON.stringify({
+          name,
+
+          address:
+            hospitalForm.address.trim() ||
+            null,
+
+          phone:
+            hospitalForm.phone.trim() ||
+            null,
+
+          email:
+            hospitalForm.email.trim() ||
+            null,
+
+          qr_code_id: qrCodeId,
+        }),
+      });
+
+      await loadHospitals();
+
+      setShowHospitalForm(false);
+
+      setHospitalForm({
+        name: "",
+        address: "",
+        phone: "",
+        email: "",
+        qr_code_id: "",
+      });
+    } catch (err) {
+      console.error(
+        "Failed to add hospital:",
+        err
+      );
+
+      setHospitalError(
+        err instanceof Error
+          ? err.message
+          : "Unable to add hospital"
+      );
+    } finally {
+      setAddingHospital(false);
+    }
+  };
 
   /* =======================================================
      ASSIGN DOCTOR
@@ -255,17 +480,13 @@ export default function AdminDashboard() {
       selectedDoctor[consultationId];
 
     if (!doctorId) {
-      alert(
-        "Please select a doctor."
-      );
+      alert("Please select a doctor.");
 
       return;
     }
 
     try {
-      setAssigning(
-        consultationId
-      );
+      setAssigning(consultationId);
 
       await api(
         `/admin/consultations/${consultationId}/assign`,
@@ -307,9 +528,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      setAssigning(
-        consultationId
-      );
+      setAssigning(consultationId);
 
       await api(
         `/admin/consultations/${consultationId}/unassign`,
@@ -335,9 +554,7 @@ export default function AdminDashboard() {
   ======================================================= */
 
   const logout = () => {
-    localStorage.removeItem(
-      "access_token"
-    );
+    localStorage.removeItem("access_token");
 
     router.push("/login");
   };
@@ -377,16 +594,27 @@ export default function AdminDashboard() {
     const value =
       status?.toLowerCase();
 
-    if (value === "reviewed") {
+    if (value === "completed") {
       return "bg-green-100 text-green-700";
     }
 
-    if (value === "in_progress") {
+    if (value === "reviewed") {
+      return "bg-purple-100 text-purple-700";
+    }
+
+    if (
+      value === "in_progress" ||
+      value === "in progress"
+    ) {
       return "bg-blue-100 text-blue-700";
     }
 
     if (value === "pending") {
       return "bg-gray-100 text-gray-700";
+    }
+
+    if (value === "referred") {
+      return "bg-orange-100 text-orange-700";
     }
 
     return "bg-gray-100 text-gray-700";
@@ -414,7 +642,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <main className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-lg font-medium text-gray-600">
           Loading admin dashboard...
         </div>
@@ -429,9 +657,9 @@ export default function AdminDashboard() {
   if (error) {
     return (
       <main className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="mx-auto max-w-4xl">
 
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6">
 
             <h1 className="text-xl font-semibold text-red-700">
               Unable to load dashboard
@@ -442,10 +670,11 @@ export default function AdminDashboard() {
             </p>
 
             <button
-              onClick={
-                loadDashboard
-              }
-              className="mt-4 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+              onClick={() => {
+                loadDashboard();
+                loadHospitals();
+              }}
+              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
             >
               Try Again
             </button>
@@ -468,34 +697,44 @@ export default function AdminDashboard() {
           HEADER
       =================================================== */}
 
-      <header className="bg-white border-b">
+      <header className="border-b bg-white">
 
-        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
 
           <div>
+
             <h1 className="text-2xl font-bold text-gray-900">
               Admin Dashboard
             </h1>
 
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="mt-1 text-sm text-gray-500">
               Hospital AI Platform
             </p>
+
           </div>
 
           <div className="flex items-center gap-3">
 
             <button
-              onClick={
-                loadDashboard
-              }
-              className="px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50"
+              onClick={() => {
+                loadDashboard();
+                loadHospitals();
+              }}
+              className="rounded-lg border bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
             >
               Refresh
             </button>
 
             <button
+              onClick={openHospitalForm}
+              className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
+            >
+              + Add Hospital
+            </button>
+
+            <button
               onClick={logout}
-              className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+              className="rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-gray-800"
             >
               Logout
             </button>
@@ -510,19 +749,27 @@ export default function AdminDashboard() {
           CONTENT
       =================================================== */}
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="mx-auto max-w-7xl px-6 py-8">
 
         {/* =================================================
-            STATISTICS
+            OVERVIEW
         ================================================= */}
 
         <section>
 
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Overview
-          </h2>
+          <div className="mb-4">
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Overview
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Platform and consultation statistics.
+            </p>
+
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
 
             <StatCard
               title="Total Users"
@@ -553,16 +800,87 @@ export default function AdminDashboard() {
             />
 
             <StatCard
-              title="Consultations"
+              title="Total Consultations"
               value={
                 stats?.total_consultations ?? 0
+              }
+            />
+
+          </div>
+
+        </section>
+
+        {/* =================================================
+            TODAY'S CONSULTATIONS
+        ================================================= */}
+
+        <section className="mt-8">
+
+          <div className="mb-4">
+
+            <h2 className="text-xl font-semibold text-gray-900">
+              Today's Consultations
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Current consultation status for today.
+            </p>
+
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+
+            <StatCard
+              title="Today"
+              value={
+                stats?.today_consultations ?? 0
               }
             />
 
             <StatCard
               title="Pending"
               value={
+                stats?.today_pending ?? 0
+              }
+            />
+
+            <StatCard
+              title="In Progress"
+              value={
+                stats?.today_in_progress ?? 0
+              }
+            />
+
+            <StatCard
+              title="Completed"
+              value={
+                stats?.today_completed ?? 0
+              }
+            />
+
+          </div>
+
+        </section>
+
+        {/* =================================================
+            OTHER STATISTICS
+        ================================================= */}
+
+        <section className="mt-8">
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+
+            <StatCard
+              title="All Pending"
+              value={
                 stats?.pending_consultations ?? 0
+              }
+            />
+
+            <StatCard
+              title="Reviewed"
+              value={
+                stats?.reviewed_consultations ?? 0
               }
             />
 
@@ -587,14 +905,179 @@ export default function AdminDashboard() {
               }
             />
 
-            <StatCard
-              title="Reviewed"
-              value={
-                stats?.reviewed_consultations ?? 0
-              }
-            />
+          </div>
+
+        </section>
+
+        {/* =================================================
+            HOSPITAL MANAGEMENT
+        ================================================= */}
+
+        <section className="mt-10">
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+
+              <h2 className="text-xl font-semibold text-gray-900">
+                Hospital Management
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Manage hospitals connected to the AI Hospital Platform.
+              </p>
+
+            </div>
+
+            <button
+              onClick={openHospitalForm}
+              className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
+            >
+              + Add Hospital
+            </button>
 
           </div>
+
+          {hospitalError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {hospitalError}
+            </div>
+          )}
+
+          {hospitalLoading ? (
+
+            <div className="rounded-xl border bg-white p-8 text-center text-gray-500">
+              Loading hospitals...
+            </div>
+
+          ) : hospitals.length === 0 ? (
+
+            <div className="rounded-xl border bg-white p-8 text-center">
+
+              <div className="text-4xl">
+                🏥
+              </div>
+
+              <h3 className="mt-3 font-semibold text-gray-900">
+                No hospitals added
+              </h3>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Add your first hospital to the platform.
+              </p>
+
+              <button
+                onClick={openHospitalForm}
+                className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                + Add Hospital
+              </button>
+
+            </div>
+
+          ) : (
+
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+              {hospitals.map(
+                (hospital) => (
+
+                  <div
+                    key={hospital.id}
+                    className="rounded-xl border bg-white p-5 shadow-sm"
+                  >
+
+                    <div className="flex items-start justify-between gap-3">
+
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl">
+                          🏥
+                        </div>
+
+                        <div>
+
+                          <h3 className="font-semibold text-gray-900">
+                            {hospital.name}
+                          </h3>
+
+                          <p className="text-xs text-gray-500">
+                            Hospital #{hospital.id}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          hospital.is_active
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {hospital.is_active
+                          ? "Active"
+                          : "Inactive"}
+                      </span>
+
+                    </div>
+
+                    <div className="mt-5 space-y-2 text-sm text-gray-600">
+
+                      <p>
+                        <strong className="text-gray-800">
+                          Address:
+                        </strong>{" "}
+                        {hospital.address ||
+                          "Not provided"}
+                      </p>
+
+                      <p>
+                        <strong className="text-gray-800">
+                          Phone:
+                        </strong>{" "}
+                        {hospital.phone ||
+                          "Not provided"}
+                      </p>
+
+                      <p className="break-all">
+                        <strong className="text-gray-800">
+                          Email:
+                        </strong>{" "}
+                        {hospital.email ||
+                          "Not provided"}
+                      </p>
+
+                    </div>
+
+                    <div className="mt-5 rounded-lg bg-gray-50 p-3">
+
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        QR Code ID
+                      </p>
+
+                      <p className="mt-1 break-all font-mono text-sm text-gray-900">
+                        {hospital.qr_code_id}
+                      </p>
+
+                    </div>
+
+                    <p className="mt-4 text-xs text-gray-400">
+                      Added:{" "}
+                      {formatDate(
+                        hospital.created_at
+                      )}
+                    </p>
+
+                  </div>
+
+                )
+              )}
+
+            </div>
+
+          )}
 
         </section>
 
@@ -610,7 +1093,7 @@ export default function AdminDashboard() {
               Consultation Management
             </h2>
 
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="mt-1 text-sm text-gray-500">
               Assign patient consultations to doctors.
             </p>
 
@@ -618,7 +1101,7 @@ export default function AdminDashboard() {
 
           {consultations.length === 0 ? (
 
-            <div className="bg-white rounded-xl border p-8 text-center text-gray-500">
+            <div className="rounded-xl border bg-white p-8 text-center text-gray-500">
               No consultations found.
             </div>
 
@@ -633,18 +1116,16 @@ export default function AdminDashboard() {
                     key={
                       consultation.id
                     }
-                    className="bg-white rounded-xl border p-6"
+                    className="rounded-xl border bg-white p-6"
                   >
 
-                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 
-                      {/* =================================
-                          PATIENT INFORMATION
-                      ================================= */}
+                      {/* PATIENT */}
 
                       <div className="flex-1">
 
-                        <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex flex-wrap items-center gap-3">
 
                           <h3 className="text-lg font-semibold text-gray-900">
                             {consultation.patient
@@ -653,24 +1134,26 @@ export default function AdminDashboard() {
                           </h3>
 
                           <span
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${priorityClass(
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${priorityClass(
                               consultation.priority
                             )}`}
                           >
-                            {consultation.priority}
+                            {consultation.priority ||
+                              "Normal"}
                           </span>
 
                           <span
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusClass(
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClass(
                               consultation.status
                             )}`}
                           >
-                            {consultation.status}
+                            {consultation.status ||
+                              "Pending"}
                           </span>
 
                         </div>
 
-                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-2">
 
                           <p>
                             <strong>
@@ -718,10 +1201,8 @@ export default function AdminDashboard() {
 
                         </div>
 
-                        {/* ASSIGNED DOCTOR */}
-
                         {consultation.doctor && (
-                          <div className="mt-4 p-3 rounded-lg bg-blue-50">
+                          <div className="mt-4 rounded-lg bg-blue-50 p-3">
 
                             <p className="text-sm text-blue-800">
 
@@ -737,7 +1218,7 @@ export default function AdminDashboard() {
 
                             </p>
 
-                            <p className="text-xs text-blue-600 mt-1">
+                            <p className="mt-1 text-xs text-blue-600">
                               {
                                 consultation
                                   .doctor
@@ -750,9 +1231,7 @@ export default function AdminDashboard() {
 
                       </div>
 
-                      {/* =================================
-                          ACTIONS
-                      ================================= */}
+                      {/* ACTIONS */}
 
                       <div className="w-full lg:w-72">
 
@@ -760,7 +1239,7 @@ export default function AdminDashboard() {
 
                           <>
 
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
                               Assign Doctor
                             </label>
 
@@ -790,7 +1269,7 @@ export default function AdminDashboard() {
                                 );
 
                               }}
-                              className="w-full border rounded-lg px-3 py-2 bg-white text-sm"
+                              className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
                             >
 
                               <option value="">
@@ -828,7 +1307,7 @@ export default function AdminDashboard() {
                                 assigning ===
                                 consultation.id
                               }
-                              className="mt-3 w-full px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                              className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                             >
                               {assigning ===
                               consultation.id
@@ -850,7 +1329,7 @@ export default function AdminDashboard() {
                               assigning ===
                               consultation.id
                             }
-                            className="w-full px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            className="w-full rounded-lg border border-red-200 px-4 py-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
                           >
                             {assigning ===
                             consultation.id
@@ -866,7 +1345,7 @@ export default function AdminDashboard() {
                               `/admin/consultations/${consultation.id}`
                             )
                           }
-                          className="mt-3 w-full px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50"
+                          className="mt-3 w-full rounded-lg border bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
                         >
                           View Consultation
                         </button>
@@ -898,39 +1377,39 @@ export default function AdminDashboard() {
               User Management
             </h2>
 
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="mt-1 text-sm text-gray-500">
               Manage users, roles and account status.
             </p>
 
           </div>
 
-          <div className="bg-white border rounded-xl overflow-hidden">
+          <div className="overflow-hidden rounded-xl border bg-white">
 
             <div className="overflow-x-auto">
 
               <table className="w-full text-sm">
 
-                <thead className="bg-gray-50 border-b">
+                <thead className="border-b bg-gray-50">
 
                   <tr>
 
-                    <th className="text-left px-5 py-3 font-medium text-gray-600">
+                    <th className="px-5 py-3 text-left font-medium text-gray-600">
                       User
                     </th>
 
-                    <th className="text-left px-5 py-3 font-medium text-gray-600">
+                    <th className="px-5 py-3 text-left font-medium text-gray-600">
                       Email
                     </th>
 
-                    <th className="text-left px-5 py-3 font-medium text-gray-600">
+                    <th className="px-5 py-3 text-left font-medium text-gray-600">
                       Role
                     </th>
 
-                    <th className="text-left px-5 py-3 font-medium text-gray-600">
+                    <th className="px-5 py-3 text-left font-medium text-gray-600">
                       Status
                     </th>
 
-                    <th className="text-left px-5 py-3 font-medium text-gray-600">
+                    <th className="px-5 py-3 text-left font-medium text-gray-600">
                       Actions
                     </th>
 
@@ -940,23 +1419,50 @@ export default function AdminDashboard() {
 
                 <tbody>
 
-                  {users.map(
-                    (user) => (
+                  {users.length === 0 ? (
 
-                      <UserRow
-                        key={user.id}
-                        user={user}
-                        onUpdated={
-                          loadDashboard
-                        }
-                        onView={() =>
-                          router.push(
-                            `/admin/users/${user.id}`
-                          )
-                        }
-                      />
+                    <tr>
 
+                      <td
+                        colSpan={5}
+                        className="px-5 py-8 text-center text-gray-500"
+                      >
+                        No users found.
+                      </td>
+
+                    </tr>
+
+                  ) : (
+
+                    users.map(
+                      (user) => (
+
+                        <UserRow
+                          key={user.id}
+                          user={user}
+                          onUpdated={
+                            loadDashboard
+                          }
+                          onDeleted={(userId) => {
+                            setUsers(
+                              (current) =>
+                                current.filter(
+                                  (item) =>
+                                    item.id !==
+                                    userId
+                                )
+                            );
+                          }}
+                          onView={() =>
+                            router.push(
+                              `/admin/users/${user.id}`
+                            )
+                          }
+                        />
+
+                      )
                     )
+
                   )}
 
                 </tbody>
@@ -970,6 +1476,241 @@ export default function AdminDashboard() {
         </section>
 
       </div>
+
+      {/* ===================================================
+          ADD HOSPITAL MODAL
+      =================================================== */}
+
+      {showHospitalForm && (
+
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+
+            <div className="flex items-start justify-between">
+
+              <div>
+
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Add Hospital
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Add a hospital to the AI Hospital Platform.
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={closeHospitalForm}
+                disabled={addingHospital}
+                className="rounded-lg px-3 py-1 text-2xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+              >
+                ×
+              </button>
+
+            </div>
+
+            {hospitalError && (
+
+              <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
+
+                <p className="text-sm font-medium text-red-700">
+                  {hospitalError}
+                </p>
+
+              </div>
+
+            )}
+
+            <div className="mt-6 space-y-4">
+
+              {/* NAME */}
+
+              <div>
+
+                <label
+                  htmlFor="hospital-name"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
+                  Hospital Name *
+                </label>
+
+                <input
+                  id="hospital-name"
+                  type="text"
+                  value={
+                    hospitalForm.name
+                  }
+                  onChange={(event) =>
+                    updateHospitalField(
+                      "name",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Example: Government General Hospital"
+                  disabled={addingHospital}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+                />
+
+              </div>
+
+              {/* ADDRESS */}
+
+              <div>
+
+                <label
+                  htmlFor="hospital-address"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
+                  Address
+                </label>
+
+                <textarea
+                  id="hospital-address"
+                  value={
+                    hospitalForm.address
+                  }
+                  onChange={(event) =>
+                    updateHospitalField(
+                      "address",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Hospital address"
+                  rows={3}
+                  disabled={addingHospital}
+                  className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+                />
+
+              </div>
+
+              {/* PHONE */}
+
+              <div>
+
+                <label
+                  htmlFor="hospital-phone"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
+                  Phone
+                </label>
+
+                <input
+                  id="hospital-phone"
+                  type="tel"
+                  value={
+                    hospitalForm.phone
+                  }
+                  onChange={(event) =>
+                    updateHospitalField(
+                      "phone",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Hospital phone number"
+                  disabled={addingHospital}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+                />
+
+              </div>
+
+              {/* EMAIL */}
+
+              <div>
+
+                <label
+                  htmlFor="hospital-email"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
+                  Email
+                </label>
+
+                <input
+                  id="hospital-email"
+                  type="email"
+                  value={
+                    hospitalForm.email
+                  }
+                  onChange={(event) =>
+                    updateHospitalField(
+                      "email",
+                      event.target.value
+                    )
+                  }
+                  placeholder="hospital@example.com"
+                  disabled={addingHospital}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+                />
+
+              </div>
+
+              {/* QR CODE */}
+
+              <div>
+
+                <label
+                  htmlFor="hospital-qr"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
+                  QR Code ID *
+                </label>
+
+                <input
+                  id="hospital-qr"
+                  type="text"
+                  value={
+                    hospitalForm.qr_code_id
+                  }
+                  onChange={(event) =>
+                    updateHospitalField(
+                      "qr_code_id",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Example: HOSPITAL-001"
+                  disabled={addingHospital}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 font-mono text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+                />
+
+                <p className="mt-1 text-xs text-gray-500">
+                  This ID must be unique.
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+              <button
+                type="button"
+                onClick={closeHospitalForm}
+                disabled={addingHospital}
+                className="rounded-lg border border-gray-300 bg-white px-5 py-3 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={addHospital}
+                disabled={addingHospital}
+                className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {addingHospital
+                  ? "Adding Hospital..."
+                  : "Add Hospital"}
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
 
     </main>
   );
@@ -987,13 +1728,13 @@ function StatCard({
   value: number;
 }) {
   return (
-    <div className="bg-white border rounded-xl p-5">
+    <div className="rounded-xl border bg-white p-5 shadow-sm">
 
       <p className="text-sm text-gray-500">
         {title}
       </p>
 
-      <p className="text-2xl font-bold text-gray-900 mt-2">
+      <p className="mt-2 text-2xl font-bold text-gray-900">
         {value}
       </p>
 
@@ -1008,10 +1749,12 @@ function StatCard({
 function UserRow({
   user,
   onUpdated,
+  onDeleted,
   onView,
 }: {
   user: User;
   onUpdated: () => Promise<void>;
+  onDeleted: (userId: number) => void;
   onView: () => void;
 }) {
   const [role, setRole] =
@@ -1020,25 +1763,31 @@ function UserRow({
   const [saving, setSaving] =
     useState(false);
 
+  const [deleting, setDeleting] =
+    useState(false);
+
   /* =======================================================
      GET TOKEN
   ======================================================= */
 
   const getToken = () => {
+    if (
+      typeof window === "undefined"
+    ) {
+      return null;
+    }
+
     return localStorage.getItem(
       "access_token"
     );
   };
 
   /* =======================================================
-     UPDATE USER
+     UPDATE ROLE
   ======================================================= */
 
-  const updateUser = async (
-    data: {
-      role?: string;
-      is_active?: boolean;
-    }
+  const updateRole = async (
+    newRole: string
   ) => {
     const token = getToken();
 
@@ -1070,9 +1819,9 @@ function UserRow({
                 `Bearer ${token}`,
             },
 
-            body: JSON.stringify(
-              data
-            ),
+            body: JSON.stringify({
+              role: newRole,
+            }),
           }
         );
 
@@ -1106,7 +1855,7 @@ function UserRow({
       alert(
         error instanceof Error
           ? error.message
-          : "Unable to update user."
+          : "Unable to update role."
       );
 
       setRole(user.role);
@@ -1140,38 +1889,122 @@ function UserRow({
       return;
     }
 
-    await updateUser({
-      role: newRole,
-    });
+    await updateRole(newRole);
   };
 
   /* =======================================================
-     TOGGLE ACCOUNT
+     DELETE USER PERMANENTLY
   ======================================================= */
 
-  const toggleActive =
+  const deleteUserPermanently =
     async () => {
-
-      const action =
-        user.is_active
-          ? "deactivate"
-          : "activate";
-
       const confirmed =
         window.confirm(
-          `${action.charAt(0).toUpperCase()}${action.slice(
-            1
-          )} ${user.full_name}'s account?`
+          `WARNING: This will permanently delete ${user.full_name}'s account and remove the user from the database.\n\nThis action cannot be undone.\n\nAre you sure you want to continue?`
         );
 
       if (!confirmed) {
         return;
       }
 
-      await updateUser({
-        is_active:
-          !user.is_active,
-      });
+      const doubleConfirmed =
+        window.confirm(
+          `Final confirmation:\n\nPermanently delete ${user.full_name}?`
+        );
+
+      if (!doubleConfirmed) {
+        return;
+      }
+
+      const token = getToken();
+
+      if (!token) {
+        alert(
+          "Authentication required."
+        );
+
+        return;
+      }
+
+      try {
+        setDeleting(true);
+
+        const response =
+          await fetch(
+            `${API_BASE_URL}/admin/users/${user.id}`,
+            {
+              method: "DELETE",
+
+              headers: {
+                Accept:
+                  "application/json",
+
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        /* ===============================================
+           SESSION EXPIRED
+        =============================================== */
+
+        if (response.status === 401) {
+          localStorage.removeItem(
+            "access_token"
+          );
+
+          window.location.href =
+            "/login";
+
+          return;
+        }
+
+        const result =
+          await response
+            .json()
+            .catch(() => null);
+
+        /* ===============================================
+           API ERROR
+        =============================================== */
+
+        if (!response.ok) {
+          throw new Error(
+            result?.detail ||
+              `Delete failed: ${response.status}`
+          );
+        }
+
+        /* ===============================================
+           REMOVE FROM UI
+        =============================================== */
+
+        onDeleted(user.id);
+
+        /*
+         * Refresh dashboard statistics as well.
+         */
+        await onUpdated();
+
+      } catch (error) {
+
+        console.error(
+          "Failed to permanently delete user:",
+          error
+        );
+
+        alert(
+          error instanceof Error
+            ? error.message
+            : "Unable to permanently delete user."
+        );
+
+      } finally {
+
+        setDeleting(false);
+
+      }
     };
 
   /* =======================================================
@@ -1191,7 +2024,7 @@ function UserRow({
             {user.full_name}
           </p>
 
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-xs text-gray-500">
             ID: {user.id}
           </p>
 
@@ -1211,7 +2044,10 @@ function UserRow({
 
         <select
           value={role}
-          disabled={saving}
+          disabled={
+            saving ||
+            deleting
+          }
           onChange={(event) => {
 
             const newRole =
@@ -1224,7 +2060,7 @@ function UserRow({
             );
 
           }}
-          className="border rounded-lg px-3 py-2 bg-white text-sm"
+          className="rounded-lg border bg-white px-3 py-2 text-sm disabled:bg-gray-100"
         >
 
           <option value="patient">
@@ -1248,7 +2084,7 @@ function UserRow({
       <td className="px-5 py-4">
 
         <span
-          className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
             user.is_active
               ? "bg-green-100 text-green-700"
               : "bg-red-100 text-red-700"
@@ -1269,25 +2105,29 @@ function UserRow({
 
           <button
             onClick={onView}
-            className="px-3 py-1.5 rounded-lg border bg-white text-gray-700 hover:bg-gray-50"
+            disabled={deleting}
+            className="rounded-lg border bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             View
           </button>
 
+          {/* =============================================
+              PERMANENT DELETE
+          ============================================= */}
+
           <button
-            onClick={toggleActive}
-            disabled={saving}
-            className={`px-3 py-1.5 rounded-lg border disabled:opacity-50 ${
-              user.is_active
-                ? "border-red-200 text-red-600 hover:bg-red-50"
-                : "border-green-200 text-green-600 hover:bg-green-50"
-            }`}
+            onClick={
+              deleteUserPermanently
+            }
+            disabled={
+              saving ||
+              deleting
+            }
+            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving
-              ? "Updating..."
-              : user.is_active
-              ? "Deactivate"
-              : "Activate"}
+            {deleting
+              ? "Deleting..."
+              : "Delete Permanently"}
           </button>
 
         </div>

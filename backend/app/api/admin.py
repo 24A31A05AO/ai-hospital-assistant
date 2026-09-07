@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -7,6 +8,7 @@ from app.db.session import get_db
 
 from app.models.user import User
 from app.models.consultation import Consultation
+from app.models.hospital import Hospital
 
 from app.crud.consultation import (
     consultation_to_response_data,
@@ -86,6 +88,10 @@ def get_admin_stats(
 ):
     require_admin(current_user)
 
+    # ========================================================
+    # USER COUNTS
+    # ========================================================
+
     total_users = (
         db.query(User).count()
     )
@@ -114,17 +120,70 @@ def get_admin_stats(
         .count()
     )
 
+    # ========================================================
+    # CONSULTATION COUNTS
+    # ========================================================
+
     total_consultations = (
         db.query(Consultation).count()
     )
 
+    # ========================================================
+    # TODAY'S CONSULTATIONS
+    # ========================================================
+
+    today_consultations = (
+        db.query(Consultation)
+        .filter(
+            func.date(
+                Consultation.created_at
+            )
+            == func.current_date()
+        )
+        .count()
+    )
+
+    # ========================================================
+    # STATUS COUNTS
+    # ========================================================
+
     pending_consultations = (
         db.query(Consultation)
         .filter(
-            Consultation.status.in_(
+            func.lower(
+                Consultation.status
+            ).in_(
                 [
-                    "Pending",
                     "pending",
+                ]
+            )
+        )
+        .count()
+    )
+
+    in_progress_consultations = (
+        db.query(Consultation)
+        .filter(
+            func.lower(
+                Consultation.status
+            ).in_(
+                [
+                    "in_progress",
+                    "in progress",
+                ]
+            )
+        )
+        .count()
+    )
+
+    completed_consultations = (
+        db.query(Consultation)
+        .filter(
+            func.lower(
+                Consultation.status
+            ).in_(
+                [
+                    "completed",
                 ]
             )
         )
@@ -134,28 +193,102 @@ def get_admin_stats(
     reviewed_consultations = (
         db.query(Consultation)
         .filter(
-            Consultation.status.in_(
+            func.lower(
+                Consultation.status
+            ).in_(
                 [
                     "reviewed",
-                    "Reviewed",
                 ]
             )
         )
         .count()
     )
 
-    emergency_consultations = (
+    referred_consultations = (
         db.query(Consultation)
         .filter(
-            Consultation.priority.in_(
+            func.lower(
+                Consultation.status
+            ).in_(
                 [
-                    "Emergency",
-                    "emergency",
+                    "referred",
                 ]
             )
         )
         .count()
     )
+
+    # ========================================================
+    # TODAY STATUS COUNTS
+    # ========================================================
+
+    today_pending = (
+        db.query(Consultation)
+        .filter(
+            func.date(
+                Consultation.created_at
+            )
+            == func.current_date(),
+            func.lower(
+                Consultation.status
+            )
+            == "pending",
+        )
+        .count()
+    )
+
+    today_in_progress = (
+        db.query(Consultation)
+        .filter(
+            func.date(
+                Consultation.created_at
+            )
+            == func.current_date(),
+            func.lower(
+                Consultation.status
+            ).in_(
+                [
+                    "in_progress",
+                    "in progress",
+                ]
+            ),
+        )
+        .count()
+    )
+
+    today_completed = (
+        db.query(Consultation)
+        .filter(
+            func.date(
+                Consultation.created_at
+            )
+            == func.current_date(),
+            func.lower(
+                Consultation.status
+            )
+            == "completed",
+        )
+        .count()
+    )
+
+    # ========================================================
+    # PRIORITY
+    # ========================================================
+
+    emergency_consultations = (
+        db.query(Consultation)
+        .filter(
+            func.lower(
+                Consultation.priority
+            )
+            == "emergency"
+        )
+        .count()
+    )
+
+    # ========================================================
+    # DOCTOR ASSIGNMENT
+    # ========================================================
 
     assigned_consultations = (
         db.query(Consultation)
@@ -173,17 +306,82 @@ def get_admin_stats(
         .count()
     )
 
+    # ========================================================
+    # HOSPITALS
+    # ========================================================
+
+    total_hospitals = (
+        db.query(Hospital).count()
+    )
+
+    active_hospitals = (
+        db.query(Hospital)
+        .filter(
+            Hospital.is_active.is_(True)
+        )
+        .count()
+    )
+
+    inactive_hospitals = (
+        db.query(Hospital)
+        .filter(
+            Hospital.is_active.is_(False)
+        )
+        .count()
+    )
+
+    # ========================================================
+    # RESPONSE
+    # ========================================================
+
     return {
+        # Users
         "total_users": total_users,
         "total_patients": total_patients,
         "total_doctors": total_doctors,
         "total_admins": total_admins,
+
+        # Consultations
         "total_consultations": total_consultations,
+        "today_consultations": today_consultations,
+
+        # Overall status
         "pending_consultations": pending_consultations,
-        "reviewed_consultations": reviewed_consultations,
-        "emergency_consultations": emergency_consultations,
-        "assigned_consultations": assigned_consultations,
-        "unassigned_consultations": unassigned_consultations,
+        "in_progress_consultations": (
+            in_progress_consultations
+        ),
+        "completed_consultations": (
+            completed_consultations
+        ),
+        "reviewed_consultations": (
+            reviewed_consultations
+        ),
+        "referred_consultations": (
+            referred_consultations
+        ),
+
+        # Today's status
+        "today_pending": today_pending,
+        "today_in_progress": today_in_progress,
+        "today_completed": today_completed,
+
+        # Priority
+        "emergency_consultations": (
+            emergency_consultations
+        ),
+
+        # Assignment
+        "assigned_consultations": (
+            assigned_consultations
+        ),
+        "unassigned_consultations": (
+            unassigned_consultations
+        ),
+
+        # Hospitals
+        "total_hospitals": total_hospitals,
+        "active_hospitals": active_hospitals,
+        "inactive_hospitals": inactive_hospitals,
     }
 
 
@@ -212,7 +410,7 @@ def get_all_users(
 
 
 # ============================================================
-# GET ALL DOCTORS
+# GET ALL ACTIVE DOCTORS
 # ============================================================
 
 
@@ -221,13 +419,6 @@ def get_all_doctors(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Return only active doctors.
-
-    This endpoint is used by the Admin Dashboard
-    doctor dropdown.
-    """
-
     require_admin(current_user)
 
     doctors = (
@@ -280,6 +471,16 @@ def get_user(
 
 # ============================================================
 # UPDATE USER
+#
+# IMPORTANT:
+#
+# If is_active=False:
+#     USER IS PERMANENTLY DELETED.
+#
+# If is_active=True:
+#     USER REMAINS ACTIVE.
+#
+# Role changes still work normally.
 # ============================================================
 
 
@@ -316,6 +517,112 @@ def update_user(
         )
 
     # ========================================================
+    # NEVER DELETE YOUR OWN ADMIN ACCOUNT
+    # ========================================================
+
+    if (
+        user.id == current_user.id
+        and update_data.is_active is False
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "You cannot deactivate "
+                "or delete your own account."
+            ),
+        )
+
+    # ========================================================
+    # PERMANENT USER DELETION
+    #
+    # Frontend sends:
+    #
+    # {
+    #     "is_active": false
+    # }
+    #
+    # Instead of setting inactive,
+    # permanently delete the user.
+    # ========================================================
+
+    if update_data.is_active is False:
+
+        # ----------------------------------------------------
+        # If the user is a doctor:
+        #
+        # Remove doctor assignment from consultations first.
+        #
+        # This prevents foreign-key problems if
+        # consultations.doctor_id references users.id.
+        # ----------------------------------------------------
+
+        if user.role == "doctor":
+
+            db.query(Consultation).filter(
+                Consultation.doctor_id == user.id
+            ).update(
+                {
+                    Consultation.doctor_id: None,
+                    Consultation.status: "pending",
+                },
+                synchronize_session=False,
+            )
+
+        # ----------------------------------------------------
+        # If the user is a patient:
+        #
+        # IMPORTANT:
+        # We do NOT delete their consultations here.
+        #
+        # If consultation.user_id has a foreign-key
+        # relationship without cascade, deletion could fail.
+        #
+        # Therefore, first try to remove dependent
+        # consultation records safely.
+        # ----------------------------------------------------
+
+        if user.role == "patient":
+
+            patient_consultations = (
+                db.query(Consultation)
+                .filter(
+                    Consultation.user_id == user.id
+                )
+                .all()
+            )
+
+            for consultation in patient_consultations:
+                db.delete(consultation)
+
+        # ----------------------------------------------------
+        # Delete user permanently
+        # ----------------------------------------------------
+
+        try:
+            db.delete(user)
+            db.commit()
+
+        except Exception:
+            db.rollback()
+
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "Unable to permanently delete user. "
+                    "The user may still be referenced "
+                    "by another database record."
+                ),
+            )
+
+        return {
+            "success": True,
+            "message": (
+                "User permanently deleted."
+            ),
+            "user_id": user_id,
+        }
+
+    # ========================================================
     # ROLE UPDATE
     # ========================================================
 
@@ -343,8 +650,9 @@ def update_user(
                 ),
             )
 
-        # Prevent admin from removing
-        # their own admin role.
+        # ----------------------------------------------------
+        # Cannot remove own admin role
+        # ----------------------------------------------------
 
         if (
             user.id == current_user.id
@@ -361,29 +669,20 @@ def update_user(
         user.role = role
 
     # ========================================================
-    # ACTIVE / INACTIVE
+    # ACTIVE = TRUE
+    #
+    # There is no inactive state anymore when using the
+    # deactivate action.
+    #
+    # is_active=True simply keeps/reactivates the account.
     # ========================================================
 
-    if update_data.is_active is not None:
+    if update_data.is_active is True:
 
-        if (
-            user.id == current_user.id
-            and update_data.is_active is False
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "You cannot deactivate "
-                    "your own account."
-                ),
-            )
-
-        user.is_active = (
-            update_data.is_active
-        )
+        user.is_active = True
 
     # ========================================================
-    # SAVE
+    # SAVE NORMAL UPDATE
     # ========================================================
 
     try:
@@ -467,7 +766,7 @@ def get_consultation(
 
 
 # ============================================================
-# ASSIGN DOCTOR TO CONSULTATION
+# ASSIGN DOCTOR
 # ============================================================
 
 
@@ -480,21 +779,7 @@ def assign_doctor(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Assign a doctor to a consultation.
-
-    Only admins can perform this operation.
-    """
-
-    # --------------------------------------------------------
-    # ADMIN CHECK
-    # --------------------------------------------------------
-
     require_admin(current_user)
-
-    # --------------------------------------------------------
-    # FIND CONSULTATION
-    # --------------------------------------------------------
 
     consultation = (
         db.query(Consultation)
@@ -511,10 +796,6 @@ def assign_doctor(
             detail="Consultation not found",
         )
 
-    # --------------------------------------------------------
-    # FIND DOCTOR
-    # --------------------------------------------------------
-
     doctor = (
         db.query(User)
         .filter(
@@ -530,10 +811,6 @@ def assign_doctor(
             detail="Doctor not found",
         )
 
-    # --------------------------------------------------------
-    # VERIFY ROLE
-    # --------------------------------------------------------
-
     if doctor.role != "doctor":
         raise HTTPException(
             status_code=400,
@@ -541,10 +818,6 @@ def assign_doctor(
                 "Selected user is not a doctor."
             ),
         )
-
-    # --------------------------------------------------------
-    # VERIFY ACTIVE ACCOUNT
-    # --------------------------------------------------------
 
     if not doctor.is_active:
         raise HTTPException(
@@ -555,20 +828,8 @@ def assign_doctor(
             ),
         )
 
-    # --------------------------------------------------------
-    # ASSIGN DOCTOR
-    # --------------------------------------------------------
-
     consultation.doctor_id = doctor.id
-
-    # Once assigned, move consultation
-    # from pending to in_progress.
-
     consultation.status = "in_progress"
-
-    # --------------------------------------------------------
-    # SAVE
-    # --------------------------------------------------------
 
     try:
         db.commit()
@@ -583,10 +844,6 @@ def assign_doctor(
                 "Unable to assign doctor."
             ),
         )
-
-    # --------------------------------------------------------
-    # RETURN UPDATED CONSULTATION
-    # --------------------------------------------------------
 
     return consultation_to_response_data(
         consultation,
@@ -607,12 +864,6 @@ def unassign_doctor(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Remove the assigned doctor from a consultation.
-
-    Only admins can perform this operation.
-    """
-
     require_admin(current_user)
 
     consultation = (
@@ -630,12 +881,7 @@ def unassign_doctor(
             detail="Consultation not found",
         )
 
-    # Remove doctor assignment.
-
     consultation.doctor_id = None
-
-    # Put consultation back into pending state.
-
     consultation.status = "pending"
 
     try:
