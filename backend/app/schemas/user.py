@@ -2,9 +2,19 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
-    full_name: str = Field(..., min_length=2, max_length=100)
+    full_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+    )
+
     email: EmailStr
-    phone: str = Field(..., min_length=10, max_length=15)
+
+    phone: str = Field(
+        ...,
+        min_length=10,
+        max_length=15,
+    )
 
     village: str = Field(
         ...,
@@ -35,6 +45,9 @@ class UserResponse(BaseModel):
     phone: str
     village: str
     department: str | None = None
+
+    hospital_id: int | None = None
+
     role: str
     is_active: bool
 

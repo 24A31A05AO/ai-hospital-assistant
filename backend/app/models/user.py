@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.models.base import Base
@@ -11,19 +12,70 @@ class User(Base):
 
     full_name = Column(String(100), nullable=False)
 
-    email = Column(String(100), unique=True, nullable=False, index=True)
+    email = Column(
+        String(100),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
 
     phone = Column(String(15), nullable=False)
 
-    village = Column(String(100), nullable=False, default="")
+    village = Column(
+        String(100),
+        nullable=False,
+        default="",
+    )
 
-    department = Column(String(100),  nullable=True, )
+    department = Column(
+        String(100),
+        nullable=True,
+    )
 
-    password_hash = Column(String(255), nullable=False)
+    # ---------------------------------------------------------
+    # HOSPITAL ASSIGNMENT
+    #
+    # Patients/admins can have NULL.
+    # Doctors should have a hospital_id.
+    # ---------------------------------------------------------
 
-    role = Column(String(20), nullable=False, default="patient")
+    hospital_id = Column(
+        Integer,
+        ForeignKey(
+            "hospitals.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
 
-    is_active = Column(Boolean, default=True)
+    password_hash = Column(
+        String(255),
+        nullable=False,
+    )
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+    role = Column(
+        String(20),
+        nullable=False,
+        default="patient",
+    )
+
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    # ---------------------------------------------------------
+    # RELATIONSHIP
+    # ---------------------------------------------------------
+
+    hospital = relationship(
+        "Hospital",
+        foreign_keys=[hospital_id],
+    )
