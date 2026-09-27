@@ -6,7 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap:
-      "https://ai-hospital-frontend.onrender.com/sitemap.xml",
+    sitemap: "https://ai-hospital-frontend.onrender.com/sitemap.xml",
   };
 }
