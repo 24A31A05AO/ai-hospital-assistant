@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl =
-    "https://ai-hospital-frontend.onrender.com";
+  const baseUrl = "https://ai-hospital-frontend.onrender.com";
 
   return [
     {
