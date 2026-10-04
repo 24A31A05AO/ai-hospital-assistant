@@ -1,3 +1,4 @@
+
 import json
 
 from sqlalchemy.orm import Session
@@ -18,79 +19,81 @@ def create_consultation(
     consultation: ConsultationCreate,
 ):
     """
-    Create a new patient consultation.
-
-    The patient's original information is stored exactly as
-    provided. AI is used only for:
-        - factual summary
-        - department classification
-        - preliminary priority
-        - safety/red-flag detection
-
-    No possible medical conditions or recommended tests
-    are generated or stored.
+    Save the patient's original information first.
+    AI analysis is performed after the initial save so an AI
+    service failure does not discard the consultation.
     """
-
-    # --------------------------------------------------------
-    # AI ORGANIZATION
-    # --------------------------------------------------------
-
-    ai = analyze_consultation(
-        consultation.chief_complaint,
-        consultation.symptoms,
-        consultation.medical_history,
-        consultation.medications,
-        consultation.allergies,
-    )
-
-    # --------------------------------------------------------
-    # CREATE DATABASE RECORD
-    # --------------------------------------------------------
 
     new_consultation = Consultation(
         user_id=user_id,
-
-        # IMPORTANT:
-        # These are the patient's ORIGINAL responses.
         chief_complaint=consultation.chief_complaint,
         symptoms=consultation.symptoms,
         medical_history=consultation.medical_history,
         medications=consultation.medications,
         allergies=consultation.allergies,
-
-        # AI-generated factual organization only.
-        ai_summary=ai.get("summary"),
-
-        # No AI diagnosis/conditions.
+        ai_summary=None,
         possible_conditions=json.dumps([]),
-
-        # No AI test recommendations.
         recommended_tests=json.dumps([]),
-
-        # Safety information only.
-        red_flags=json.dumps(
-            ai.get("red_flags", [])
-        ),
-
-        # Hospital classification.
-        department=ai.get("department"),
-
-        priority=ai.get(
-            "priority",
-            "Low",
-        ),
-
+        red_flags=json.dumps([]),
+        department=None,
+        priority="Low",
         status="pending",
-
-        # New consultations are initially unassigned.
+        ai_status="pending",
         doctor_id=None,
     )
 
-    db.add(new_consultation)
+    # Save the original patient information first.
+    try:
+        db.add(new_consultation)
+        db.commit()
+        db.refresh(new_consultation)
+    except Exception:
+        db.rollback()
+        raise
 
-    db.commit()
+    # Mark AI processing separately.
+    try:
+        new_consultation.ai_status = "processing"
+        db.commit()
 
-    db.refresh(new_consultation)
+        ai = analyze_consultation(
+            consultation.chief_complaint,
+            consultation.symptoms,
+            consultation.medical_history,
+            consultation.medications,
+            consultation.allergies,
+        )
+
+        # Store organizational information from the AI.
+        new_consultation.ai_summary = ai.get("summary")
+        new_consultation.department = ai.get("department")
+        new_consultation.priority = ai.get("priority", "Low")
+        new_consultation.red_flags = json.dumps(
+            ai.get("red_flags", [])
+        )
+        new_consultation.ai_status = "completed"
+
+        db.commit()
+        db.refresh(new_consultation)
+
+    except Exception:
+        # The original consultation was already committed.
+        # Roll back failed AI-related changes only.
+        db.rollback()
+
+        saved = (
+            db.query(Consultation)
+            .filter(Consultation.id == new_consultation.id)
+            .first()
+        )
+
+        if saved is None:
+            raise
+
+        saved.ai_status = "failed"
+        db.commit()
+        db.refresh(saved)
+        new_consultation = saved
 
     return consultation_to_response_data(
         new_consultation,
@@ -104,15 +107,9 @@ def create_consultation(
 
 def parse_json_list(value):
     """
-    Safely convert a database Text field containing JSON
-    into a Python list.
-
-    Handles:
-        None
-        empty values
-        JSON arrays
-        plain strings
-        malformed/old data
+    Convert a database text field into a Python list.
+    Handles None, lists, JSON arrays, plain strings,
+    and malformed legacy data.
     """
 
     if not value:
@@ -132,10 +129,7 @@ def parse_json_list(value):
 
         return [str(parsed)]
 
-    except (
-        json.JSONDecodeError,
-        TypeError,
-    ):
+    except (json.JSONDecodeError, TypeError):
         return [
             item.strip()
             for item in str(value)
@@ -154,22 +148,13 @@ def consultation_to_response_data(
     db: Session,
 ):
     """
-    Convert a Consultation database object into
-    a frontend-friendly dictionary.
-
-    The original patient information is returned separately
-    so the doctor can see exactly what the patient reported.
+    Return consultation information with separate patient
+    and doctor details.
     """
-
-    # ========================================================
-    # FIND PATIENT
-    # ========================================================
 
     patient = (
         db.query(User)
-        .filter(
-            User.id == consultation.user_id
-        )
+        .filter(User.id == consultation.user_id)
         .first()
     )
 
@@ -186,19 +171,12 @@ def consultation_to_response_data(
             "is_active": patient.is_active,
         }
 
-    # ========================================================
-    # FIND ASSIGNED DOCTOR
-    # ========================================================
-
     doctor_data = None
 
     if consultation.doctor_id is not None:
-
         doctor = (
             db.query(User)
-            .filter(
-                User.id == consultation.doctor_id
-            )
+            .filter(User.id == consultation.doctor_id)
             .first()
         )
 
@@ -213,87 +191,49 @@ def consultation_to_response_data(
                 "is_active": doctor.is_active,
             }
 
-    # ========================================================
-    # RETURN CONSULTATION
-    # ========================================================
-
     return {
-        # ----------------------------------------------------
         # Consultation identity
-        # ----------------------------------------------------
-
         "id": consultation.id,
-
         "user_id": consultation.user_id,
 
-        # ----------------------------------------------------
         # Patient
-        # ----------------------------------------------------
-
         "patient": patient_data,
 
-        # ----------------------------------------------------
         # Doctor assignment
-        # ----------------------------------------------------
-
         "doctor_id": consultation.doctor_id,
-
         "doctor": doctor_data,
 
-        # ----------------------------------------------------
-        # ORIGINAL PATIENT INFORMATION
-        # ----------------------------------------------------
-
-        # These fields MUST remain the patient's actual input.
-
+        # Original patient responses
         "chief_complaint": consultation.chief_complaint,
-
         "symptoms": consultation.symptoms,
-
         "medical_history": consultation.medical_history,
-
         "medications": consultation.medications,
-
         "allergies": consultation.allergies,
 
-        # ----------------------------------------------------
-        # AI ORGANIZATION
-        # ----------------------------------------------------
-
+        # AI organization
         "ai_summary": consultation.ai_summary,
+        "ai_status": consultation.ai_status,
 
-        # Kept as empty lists for compatibility with the
-        # existing database/API until the old columns are
-        # removed through a migration.
-
+        # Retained for compatibility with the existing API.
+        # Do not use these fields to present AI diagnoses
+        # or AI-generated test recommendations to patients.
         "possible_conditions": [],
-
         "recommended_tests": [],
 
+        # Safety information
         "red_flags": parse_json_list(
             consultation.red_flags
         ),
 
-        # ----------------------------------------------------
-        # HOSPITAL CLASSIFICATION
-        # ----------------------------------------------------
-
+        # Hospital classification
         "department": consultation.department,
-
         "priority": consultation.priority,
-
         "status": consultation.status,
 
-        # ----------------------------------------------------
-        # DOCTOR REVIEW
-        # ----------------------------------------------------
-
+        # Doctor review
         "doctor_notes": consultation.doctor_notes,
 
-        # ----------------------------------------------------
-        # DATE
-        # ----------------------------------------------------
-
+        # Date
         "created_at": consultation.created_at,
     }
 
@@ -306,28 +246,18 @@ def get_consultations_by_patient(
     db: Session,
     user_id: int,
 ):
-    """
-    Return all consultations belonging
-    to a specific patient.
-    """
+    """Return consultations belonging to one patient."""
 
     consultations = (
         db.query(Consultation)
-        .filter(
-            Consultation.user_id == user_id
-        )
-        .order_by(
-            Consultation.created_at.desc()
-        )
+        .filter(Consultation.user_id == user_id)
+        .order_by(Consultation.created_at.desc())
         .all()
     )
 
     return [
-        consultation_to_response_data(
-            consultation,
-            db,
-        )
-        for consultation in consultations
+        consultation_to_response_data(item, db)
+        for item in consultations
     ]
 
 
@@ -339,15 +269,11 @@ def get_consultation_by_id(
     db: Session,
     consultation_id: int,
 ):
-    """
-    Return a single consultation by ID.
-    """
+    """Return a consultation by its ID."""
 
     return (
         db.query(Consultation)
-        .filter(
-            Consultation.id == consultation_id
-        )
+        .filter(Consultation.id == consultation_id)
         .first()
     )
 
@@ -360,26 +286,16 @@ def get_consultations_by_doctor(
     db: Session,
     doctor_id: int,
 ):
-    """
-    Return only consultations assigned
-    to the specified doctor.
-    """
+    """Return consultations assigned to a specific doctor."""
 
     consultations = (
         db.query(Consultation)
-        .filter(
-            Consultation.doctor_id == doctor_id
-        )
-        .order_by(
-            Consultation.created_at.desc()
-        )
+        .filter(Consultation.doctor_id == doctor_id)
+        .order_by(Consultation.created_at.desc())
         .all()
     )
 
     return [
-        consultation_to_response_data(
-            consultation,
-            db,
-        )
-        for consultation in consultations
+        consultation_to_response_data(item, db)
+        for item in consultations
     ]

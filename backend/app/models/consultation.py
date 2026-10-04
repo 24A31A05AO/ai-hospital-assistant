@@ -152,3 +152,10 @@ class Consultation(Base):
         "User",
         foreign_keys=[doctor_id],
     )
+    
+    ai_status = Column(
+    String(20),
+    nullable=False,
+    default="pending",
+    server_default="pending",
+)

@@ -1,5 +1,10 @@
 from typing import Literal
 
+import random
+import time
+
+from google.genai import errors
+
 from google import genai
 from pydantic import BaseModel, Field, ValidationError
 
@@ -191,25 +196,50 @@ Patient information:
 {patient_information}
 """
 
-    # ========================================================
-    # CALL GEMINI
+        # ========================================================
+    # CALL GEMINI WITH BOUNDED RETRIES
     # ========================================================
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-3.7-flash",
-            contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": AIConsultationResult,
-            },
-        )
+    max_attempts = 3
+    retryable_status_codes = {429, 500, 502, 503, 504}
 
-    except Exception as exc:
-        # Do not expose provider errors to the patient.
+    response = None
+
+    for attempt in range(max_attempts):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.7-flash",
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": AIConsultationResult,
+                },
+            )
+            break
+
+        except errors.APIError as exc:
+            status_code = getattr(exc, "code", None)
+
+            if (
+                status_code not in retryable_status_codes
+                or attempt == max_attempts - 1
+            ):
+                raise RuntimeError(
+                    "AI assessment service is temporarily unavailable."
+                ) from exc
+
+            delay = min(2 ** attempt, 8) + random.uniform(0, 0.5)
+            time.sleep(delay)
+
+        except Exception as exc:
+            raise RuntimeError(
+                "AI assessment service is temporarily unavailable."
+            ) from exc
+
+    if response is None:
         raise RuntimeError(
             "AI assessment service is temporarily unavailable."
-        ) from exc
+        )
 
     # ========================================================
     # CHECK RESPONSE

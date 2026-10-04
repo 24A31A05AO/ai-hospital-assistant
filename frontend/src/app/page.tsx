@@ -71,7 +71,7 @@ export default function HomePage() {
             </p>
 
             <div className="hero-buttons">
-              <Link href="/start" className="button button-primary">
+              <Link href="/consultation" className="button button-primary">
                 Start Consultation →
               </Link>
 
